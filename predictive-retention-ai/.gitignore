@@ -21,17 +21,7 @@ ENV/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# ─── ML Model Dosyaları ──────────────────────────────────────────────────────
-# Büyük model dosyaları git'e atılmaz (Git LFS veya DVC kullanılır)
-models/*.pkl
-models/*.pt
-models/*.pth
-models/*.h5
-models/*.joblib
-models/*.bin
-
-# Scaler / encoder dosyaları
-models/scaler.pkl
+# Büyük model dosyaları artık Git LFS ile takip ediliyor
 
 # ─── Veri Dosyaları ──────────────────────────────────────────────────────────
 # Ham veri (büyük, hassas veya lisanslı olabilir)
