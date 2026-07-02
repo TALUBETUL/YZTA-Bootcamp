@@ -6,7 +6,7 @@ YZTA Bootcamp project
 
 ## Proje Geliştiricileri
 
- - Betül Talu
+ - Betül TALU
  - Serhat AYDIN
 
 ## Proje İsmi
