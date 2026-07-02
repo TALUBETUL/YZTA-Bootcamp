@@ -4,59 +4,38 @@ YZTA Bootcamp project
 ## Team Name
 (Group 78)
 
-## Project Developer
+## Proje Geliştiricileri
 
- - Betül Talu 
- 
-## Information About the Product
+ - Betül Talu
+ - Serhat AYDIN
 
-## Project Name
+## Proje İsmi
 Churnoloji
 
 ## Backlog Link
 
 https://trello.com/invite/b/6a381148ac23fe2efa8e8fe6/ATTI3d4eebbe8e71dbcd2a8a197810219a7000F4543E/yzta-backlog-board
 
-## Project Description
-
-A code review system that connects to GitHub and automatically activates upon opening a Pull Request (PR). It utilizes multiple AI agents to analyze code quality, security, and style compliance, while also remembering past mistakes and learning from individual developer patterns.
-
-## Features
-
-- Solves a real-world problem: The developer tooling market is massive. <br>
-- Multi-agent orchestration: Demonstrates advanced system architecture, leading to higher jury scores. <br>
-- RAG + Memory system: Showcases technical depth beyond basic API calls. <br>
-- Ease of deployment: High feasibility for a production-ready demo, providing extra credit. <br>
-- GitHub integration: Offers a realistic, professional, and impressive live demonstration. <br>
-
-## Target Audience
-
-1) jsbkjbdjk
-2) dkdlkndlk
-3) dkdkndldk
-
-<details>
-<summary><h3>🇹🇷 Türkçe Versiyonu Görüntüle</h3></summary>
-
 ## Proje Tanımı
 
-GitHub'a bağlanan, PR (Pull Request) açıldığında otomatik devreye giren, birden fazla AI agent kullanarak kod kalitesini, güvenliğini ve stil uyumunu analiz eden; geçmiş hataları hatırlayan ve geliştirici bazlı öğrenen bir kod review sistemi.
+Predictive Retention AI, telekomünikasyon sektöründeki müşteri kaybını (churn) önlemek amacıyla geliştirilmiş, uçtan uca bir yapay zeka tabanlı sadakat ve elde tutma sistemidir. Proje, müşteri verilerini analiz ederek potansiyel kayıp risklerini önceden tahmin etmekle kalmaz, aynı zamanda bu risklerin nedensel (causal) açıklamalarını sunar ve LLM (Büyük Dil Modelleri) entegrasyonu ile kişiselleştirilmiş geri kazanım stratejileri üretir.
 
-## Özellikler
+## Projenin Temel Problemi
 
-- Gerçek bir ihtiyacı çözüyor (developer tooling pazarı büyük) <br>
-- Multi-agent orkestrasyon → yüksek jüri puanı <br>
-- RAG + hafıza sistemi → teknik derinlik <br>
-- Canlıya almak kolay → ekstra puan <br>
-- GitHub entegrasyonu → gerçekçi ve etkileyici demo <br>
+Geleneksel churn tahmin modelleri genellikle "kara kutu" (black box) mantığıyla çalışır; yani sadece müşterinin gideceğini söyler ancak "neden" gideceğini açıklamaz. Ayrıca, şirketlerin çoğu "tahmin" ile "aksiyon" arasındaki köprüyü kuramaz; riskli müşteriye standart, duygudan yoksun ve etkisiz mesajlar gönderir.
 
-## Hedef Kitle 
+## Çözüm Yaklaşımı 
 
-1) jsbkjbdjk
-2) dkdlkndlk
-3) dkdkndldk
+Bu proje, churn yönetimini operasyonel bir veri analizinden çıkarıp stratejik bir müşteri deneyimi yönetimine dönüştürür:<br>
 
-</details>
+Tahmin: Yüksek doğrulukta churn olasılığı hesaplama (XGBoost/ANN).<br>
+
+Açıklanabilirlik (XAI): SHAP/LIME entegrasyonu ile her bir müşteri için "churn risk skoru"nun arkasındaki ana etkenleri (örn: son 3 aydaki fatura artışı, müşteri hizmetleri şikayeti) somutlaştırır.<br>
+
+Kişiselleştirme (LLM): Modelin tespit ettiği risk faktörlerini bir "bağlam" olarak kullanıp, müşteriye özel, empati odaklı ve çözüm sunan geri kazanım metinleri üretir.<br>
+
+Aksiyon Odaklı Arayüz: Tüm analiz ve önerileri tek bir Streamlit arayüzünde birleştirerek, karar vericilerin hızlı aksiyon almasını sağlar.<br>
+
 
 
 # SPRINTS
