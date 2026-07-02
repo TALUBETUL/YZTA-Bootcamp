@@ -1,0 +1,86 @@
+# ─── Ortam & API Anahtarları ──────────────────────────────────────────────────
+.env
+*.env.local
+
+# ─── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# Sanal ortamlar
+venv/
+.venv/
+env/
+ENV/
+.conda/
+
+# ─── Jupyter Notebook ────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ─── ML Model Dosyaları ──────────────────────────────────────────────────────
+# Büyük model dosyaları git'e atılmaz (Git LFS veya DVC kullanılır)
+models/*.pkl
+models/*.pt
+models/*.pth
+models/*.h5
+models/*.joblib
+models/*.bin
+
+# Scaler / encoder dosyaları
+models/scaler.pkl
+
+# ─── Veri Dosyaları ──────────────────────────────────────────────────────────
+# Ham veri (büyük, hassas veya lisanslı olabilir)
+data/raw/
+data/processed/
+data/features/
+data/figures/
+
+# Genel veri formatları
+*.csv
+*.xls
+*.xlsx
+*.parquet
+*.feather
+*.json.gz
+
+# ─── Streamlit ───────────────────────────────────────────────────────────────
+.streamlit/secrets.toml
+
+# ─── IDE & Editör ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Test & Coverage ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ─── Build & Dağıtım ─────────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+# ─── Log Dosyaları ───────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Optuna ──────────────────────────────────────────────────────────────────
+# Optuna çalışma veritabanları
+optuna.db
+*.db
+
+# ─── SHAP / Matplotlib Cache ─────────────────────────────────────────────────
+.shap_cache/
