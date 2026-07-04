@@ -6,11 +6,11 @@ YZTA Bootcamp project
 
 ## Proje Geliştiricileri
 
- - Betül TALU
- - Serhat AYDIN
+ - Betül TALU - Scrum Master
+ - Serhat AYDIN - Project Manager
 
 ## Proje İsmi
-Churnoloji
+Predictive Retention AI
 
 ## Backlog Link
 
@@ -36,12 +36,19 @@ Kişiselleştirme (LLM): Modelin tespit ettiği risk faktörlerini bir "bağlam"
 
 Aksiyon Odaklı Arayüz: Tüm analiz ve önerileri tek bir Streamlit arayüzünde birleştirerek, karar vericilerin hızlı aksiyon almasını sağlar.<br>
 
+## Hedef Kitle
+
+Telekomünikasyon operatörleri
+SaaS sağlayıcıları
+Müşteri İlişkileri (CRM) yöneticileri.
 
 
 # SPRINTS
 
 <details>
 <summary><h3>Sprint1</h3></summary>
+
+ 
 </details>
 
 
