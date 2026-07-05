@@ -96,7 +96,8 @@ Train/Test ayrımı gerçekleştirilmeye başlandı. <br>
 
 ## Sprint Board Screenshot
 
-<img width="1469" height="800" alt="Screenshot 2026-07-05 at 11 26 06" src="https://github.com/user-attachments/assets/ced79541-508c-415c-8ab5-e53e64a464a4" />
+<img width="1470" height="802" alt="Screenshot 2026-07-05 at 12 57 32" src="https://github.com/user-attachments/assets/ac51c2e0-4a9c-49e1-9b7e-1a075d48f61c" />
+
 
 ## Sprint Review
 
