@@ -38,9 +38,9 @@ Aksiyon Odaklı Arayüz: Tüm analiz ve önerileri tek bir Streamlit arayüzünd
 
 ## Hedef Kitle
 
-Telekomünikasyon operatörleri
-SaaS sağlayıcıları
-Müşteri İlişkileri (CRM) yöneticileri.
+Telekomünikasyon operatörleri <br>
+SaaS sağlayıcıları <br>
+Müşteri İlişkileri (CRM) yöneticileri.<br>
 
 
 # SPRINTS
@@ -48,6 +48,53 @@ Müşteri İlişkileri (CRM) yöneticileri.
 <details>
 <summary><h3>Sprint1</h3></summary>
 
+## Sprint Goal
+
+Projenin temel veri hazırlık sürecini tamamlamak ve makine öğrenmesi modeli için gerekli altyapıyı oluşturmak.
+
+<img width="1469" height="800" alt="Screenshot 2026-07-05 at 11 26 06" src="https://github.com/user-attachments/assets/ced79541-508c-415c-8ab5-e53e64a464a4" />
+
+## Sprint Review
+
+Sprint 1 sonunda veri hazırlama süreci başarıyla tamamlanmıştır. Veri seti analiz edilmiş, temizlenmiş ve model eğitimine hazır hale getirilmiştir. Ayrıca EDA çalışmaları gerçekleştirilerek veri yapısı detaylı şekilde incelenmiştir. Model geliştirme aşamasına geçilmiş olup Train/Test ayrımı tamamlanma aşamasındadır ve model eğitimi devam etmektedir.
+
+Bir sonraki sprintte model performansının iyileştirilmesi, SHAP tabanlı açıklanabilir yapay zekâ entegrasyonu ve LLM destekli mesaj üretim modülünün geliştirilmesi planlanmaktadır.
+
+## Sprint Retrospective
+
+- Veri hazırlama süreci planlanan takvim doğrultusunda tamamlandı. <br>
+- Takım içi görev dağılımı verimli ilerledi. <br>
+- Veri ön işleme pipeline'ı sorunsuz şekilde oluşturuldu.<br>
+- EDA çıktıları model geliştirme süreci için önemli içgörüler sağladı. <br>
+- Performans metriklerinin değerlendirilmesi Sprint 2'ye sarktı. <br>
+- Takımın bir araya gelmesinde çıkan sorunlar nedeniyle proje sürecinde sarkmalar yaşandı. <br>
+
+## Daily Scrum
+
+## 1. Gün
+
+Veri seti projeye aktarıldı. <br>
+Yapısal analiz gerçekleştirildi. <br>
+
+## 2. Gün
+
+Missing Value analizi yapıldı. <br>
+TotalCharges dönüşümü tamamlandı. <br>
+
+## 3. Gün
+
+Veri ön işleme pipeline'ı oluşturuldu. <br>
+Encoding işlemleri tamamlandı. <br>
+
+## 4. Gün
+
+EDA grafikleri oluşturuldu. <br>
+Model seçimi üzerine değerlendirmeler yapıldı. <br>
+
+## 5. Gün
+
+Train/Test ayrımı gerçekleştirilmeye başlandı. <br>
+İlk model eğitim denemeleri yapıldı. <br>
  
 </details>
 
