@@ -50,24 +50,22 @@ Müşteri İlişkileri (CRM) yöneticileri.<br>
 
 ## Sprint Goal ve Story Seçimleri
 
-Projenin temel veri hazırlık sürecini tamamlamak ve makine öğrenmesi modeli için gerekli altyapıyı oluşturmak.
+Makine öğrenmesi modelini tamamlamak, performansını değerlendirmek ve açıklanabilir yapay zekâ (XAI) entegrasyonunu gerçekleştirerek kullanıcıya anlamlı tahmin sonuçları sunabilmek.
 
-<img width="1469" height="800" alt="Screenshot 2026-07-05 at 11 26 06" src="https://github.com/user-attachments/assets/ced79541-508c-415c-8ab5-e53e64a464a4" />
+-Train/Test veri ayrımı	 <br>
+-Model seçiminin tamamlanması	 <br>
+-XGBoost modelinin eğitilmesi	 <br>
+-Model performans metriklerinin hesaplanması (Accuracy, F1, ROC-AUC)	 <br> <br>
+-Modelin kaydedilmesi (Joblib)	 <br>
+-SHAP TreeExplainer entegrasyonu	 <br>
+-SHAP Feature Importance grafikleri	 <br>
+-Müşteri bazlı risk faktörlerinin açıklanması	 <br>
+-SHAP çıktılarının LLM için uygun formata dönüştürülmesi	 <br>
+-Groq API entegrasyonu	 <br>
+-Prompt Engineering	 <br>
+-Streamlit Dashboard	 <br>
+-UI/UX Tasarımı <br>
 
-## Sprint Review
-
-Sprint 1 sonunda veri hazırlama süreci başarıyla tamamlanmıştır. Veri seti analiz edilmiş, temizlenmiş ve model eğitimine hazır hale getirilmiştir. Ayrıca EDA çalışmaları gerçekleştirilerek veri yapısı detaylı şekilde incelenmiştir. Model geliştirme aşamasına geçilmiş olup Train/Test ayrımı tamamlanma aşamasındadır ve model eğitimi devam etmektedir.
-
-Bir sonraki sprintte model performansının iyileştirilmesi, SHAP tabanlı açıklanabilir yapay zekâ entegrasyonu ve LLM destekli mesaj üretim modülünün geliştirilmesi planlanmaktadır.
-
-## Sprint Retrospective
-
-- Veri hazırlama süreci planlanan takvim doğrultusunda tamamlandı. <br>
-- Takım içi görev dağılımı verimli ilerledi. <br>
-- Veri ön işleme pipeline'ı sorunsuz şekilde oluşturuldu.<br>
-- EDA çıktıları model geliştirme süreci için önemli içgörüler sağladı. <br>
-- Performans metriklerinin değerlendirilmesi Sprint 2'ye sarktı. <br>
-- Takımın bir araya gelmesinde çıkan sorunlar nedeniyle proje sürecinde sarkmalar yaşandı. <br>
 
 ## Daily Scrum
 
@@ -95,6 +93,28 @@ Model seçimi üzerine değerlendirmeler yapıldı. <br>
 
 Train/Test ayrımı gerçekleştirilmeye başlandı. <br>
 İlk model eğitim denemeleri yapıldı. <br>
+
+## Sprint Board Screenshot
+
+<img width="1469" height="800" alt="Screenshot 2026-07-05 at 11 26 06" src="https://github.com/user-attachments/assets/ced79541-508c-415c-8ab5-e53e64a464a4" />
+
+## Sprint Review
+
+Sprint hedeflerine büyük ölçüde ulaşılmıştır.
+
+Model başarıyla eğitilmiş ve değerlendirilmiştir. SHAP entegrasyonu sayesinde model tahminlerinin açıklanabilirliği sağlanmıştır. Böylece kullanıcıların tahmin sonuçlarının neden oluştuğunu görebileceği altyapı hazırlanmıştır.
+
+Bir sonraki sprintte LLM destekli kişiselleştirilmiş mesaj üretimi ve kullanıcı arayüzünün geliştirilmesi planlanmıştır.
+
+## Sprint Retrospective
+
+- Veri hazırlama süreci planlanan takvim doğrultusunda tamamlandı. <br>
+- Takım içi görev dağılımı verimli ilerledi. <br>
+- Veri ön işleme pipeline'ı sorunsuz şekilde oluşturuldu.<br>
+- EDA çıktıları model geliştirme süreci için önemli içgörüler sağladı. <br>
+- Performans metriklerinin değerlendirilmesi Sprint 2'ye sarktı. <br>
+- Takımın bir araya gelmesinde çıkan sorunlar nedeniyle proje sürecinde sarkmalar yaşandı. <br>
+
  
 </details>
 
