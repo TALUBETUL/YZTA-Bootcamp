@@ -48,7 +48,7 @@ Müşteri İlişkileri (CRM) yöneticileri.<br>
 <details>
 <summary><h3>Sprint1</h3></summary>
 
-## Sprint Goal
+## Sprint Goal ve Story Seçimleri
 
 Projenin temel veri hazırlık sürecini tamamlamak ve makine öğrenmesi modeli için gerekli altyapıyı oluşturmak.
 
