@@ -55,7 +55,7 @@ Makine öğrenmesi modelini tamamlamak, performansını değerlendirmek ve açı
 -Train/Test veri ayrımı	 <br>
 -Model seçiminin tamamlanması	 <br>
 -XGBoost modelinin eğitilmesi	 <br>
--Model performans metriklerinin hesaplanması (Accuracy, F1, ROC-AUC)	 <br> <br>
+-Model performans metriklerinin hesaplanması (Accuracy, F1, ROC-AUC)	 <br>
 -Modelin kaydedilmesi (Joblib)	 <br>
 -SHAP TreeExplainer entegrasyonu	 <br>
 -SHAP Feature Importance grafikleri	 <br>
