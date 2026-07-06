@@ -98,6 +98,26 @@ Train/Test ayrımı gerçekleştirilmeye başlandı. <br>
 
 <img width="1470" height="802" alt="Screenshot 2026-07-05 at 12 57 32" src="https://github.com/user-attachments/assets/ac51c2e0-4a9c-49e1-9b7e-1a075d48f61c" />
 
+# Ürün Durumu
+
+Sprint 1 sonunda projenin temel veri hazırlama süreci başarıyla tamamlanmıştır. Telco Customer Churn veri seti sisteme aktarılmış, veri temizleme ve ön işleme adımları uygulanmış, eksik veriler giderilmiş ve gerekli veri dönüşümleri gerçekleştirilmiştir. Ayrıca gerçekleştirilen Keşifsel Veri Analizi (EDA) ile veri setinin yapısı, müşteri davranışları ve churn ile ilişkili temel değişkenler analiz edilmiştir.
+
+Bu sprint sonunda makine öğrenmesi modeli için gerekli veri altyapısı hazırlanmış olup model geliştirme çalışmalarına başlanmıştır.
+
+### Gerçekleştirilen Özellikler
+
+- ✅ Veri setinin sisteme yüklenmesi <br>
+- ✅ Veri temizleme işlemleri <br>
+- ✅ Veri ön işleme (Preprocessing Pipeline) <br>
+- ✅ Keşifsel Veri Analizi (EDA) <br>
+- ✅ Veri görselleştirmeleri <br>
+- 🚧 Train/Test veri ayrımı <br>
+- 🚧 İlk model geliştirme çalışmaları <br>
+
+<img width="942" height="637" alt="Screenshot 2026-07-06 at 14 42 19" src="https://github.com/user-attachments/assets/e5a39e3d-adc7-4f57-9e37-82ad094f2a74" />
+
+<img width="1262" height="629" alt="Screenshot 2026-07-06 at 14 44 24" src="https://github.com/user-attachments/assets/c9ad886b-4559-4171-ab71-e7908d551c5a" />
+
 
 ## Sprint Review
 
