@@ -20,6 +20,19 @@ https://trello.com/invite/b/6a381148ac23fe2efa8e8fe6/ATTI3d4eebbe8e71dbcd2a8a197
 
 Predictive Retention AI, telekomünikasyon sektöründeki müşteri kaybını (churn) önlemek amacıyla geliştirilmiş, uçtan uca bir yapay zeka tabanlı sadakat ve elde tutma sistemidir. Proje, müşteri verilerini analiz ederek potansiyel kayıp risklerini önceden tahmin etmekle kalmaz, aynı zamanda bu risklerin nedensel (causal) açıklamalarını sunar ve LLM (Büyük Dil Modelleri) entegrasyonu ile kişiselleştirilmiş geri kazanım stratejileri üretir.
 
+## Ürün Özellikleri
+
+Predictive Retention AI, müşteri kaybını önlemeye yönelik yapay zekâ destekli bir karar destek sistemi olarak aşağıdaki temel özellikleri sunmaktadır:
+
+ -Churn Tahmini: Müşterilerin hizmeti bırakma olasılığını makine öğrenmesi modelleri ile tahmin eder.<br>
+ -Açıklanabilir Yapay Zekâ (XAI): SHAP analizi sayesinde tahminlerin hangi faktörlere dayandığını kullanıcıya açıklar.<br>
+ -LLM Destekli Kişiselleştirilmiş Mesaj Üretimi: Riskli müşteriler için yapay zekâ destekli, kişiselleştirilmiş müşteri tutundurma mesajları oluşturur.<br>
+ -İnteraktif Dashboard: Risk dağılımı, müşteri analizleri ve model sonuçlarını görsel olarak sunar.<br>
+ -Müşteri Bazlı Analiz: Seçilen bir müşterinin churn riski ve bu riske etki eden faktörleri detaylı olarak gösterir.<br>
+ -Yönetici Özet Raporu: Riskli müşteri grupları için özet analizler ve karar destek bilgileri sağlar.<br>
+ -CSV Dışa Aktarma: Analiz sonuçlarının CSV formatında dışa aktarılmasını destekler.<br>
+ -Modern Kullanıcı Arayüzü: Streamlit tabanlı, sade ve kullanıcı dostu bir arayüz ile kolay kullanım sunar.<br>
+
 ## Projenin Temel Problemi
 
 Geleneksel churn tahmin modelleri genellikle "kara kutu" (black box) mantığıyla çalışır; yani sadece müşterinin gideceğini söyler ancak "neden" gideceğini açıklamaz. Ayrıca, şirketlerin çoğu "tahmin" ile "aksiyon" arasındaki köprüyü kuramaz; riskli müşteriye standart, duygudan yoksun ve etkisiz mesajlar gönderir.
