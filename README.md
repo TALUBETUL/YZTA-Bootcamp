@@ -119,13 +119,13 @@ Bu sprint sonunda makine öğrenmesi modeli için gerekli veri altyapısı hazı
 
 ### Gerçekleştirilen Özellikler
 
-- ✅ Veri setinin sisteme yüklenmesi <br>
-- ✅ Veri temizleme işlemleri <br>
-- ✅ Veri ön işleme (Preprocessing Pipeline) <br>
-- ✅ Keşifsel Veri Analizi (EDA) <br>
-- ✅ Veri görselleştirmeleri <br>
-- 🚧 Train/Test veri ayrımı <br>
-- 🚧 İlk model geliştirme çalışmaları <br>
+-  Veri setinin sisteme yüklenmesi <br>
+-  Veri temizleme işlemleri <br>
+-  Veri ön işleme (Preprocessing Pipeline) <br>
+-  Keşifsel Veri Analizi (EDA) <br>
+-  Veri görselleştirmeleri <br>
+-  Train/Test veri ayrımı <br>
+-  İlk model geliştirme çalışmaları <br>
 
 <img width="942" height="637" alt="Screenshot 2026-07-06 at 14 42 19" src="https://github.com/user-attachments/assets/e5a39e3d-adc7-4f57-9e37-82ad094f2a74" />
 
