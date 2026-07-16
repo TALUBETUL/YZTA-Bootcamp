@@ -93,7 +93,7 @@ def evaluate_model(model: xgb.XGBClassifier,
     }
 
     print("\n" + "="*50)
-    print("📊 MODEL DEĞERLENDİRME SONUÇLARI")
+    print("\nMODEL DEĞERLENDİRME SONUÇLARI")
     print("="*50)
     print(f"  F1 Score    : {f1:.4f}")
     print(f"  ROC-AUC     : {roc_auc:.4f}")
@@ -133,7 +133,7 @@ def optimize_hyperparams(X_train: pd.DataFrame, y_train: pd.Series,
         y_pred = model.predict(X_val)
         return f1_score(y_val, y_pred)
 
-    print(f"🔍 Optuna ile {n_trials} deneme yapılıyor...")
+    print(f"\nOptuna ile {n_trials} deneme yapılıyor...")
     study = optuna.create_study(direction="maximize")
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     study.optimize(objective, n_trials=n_trials)

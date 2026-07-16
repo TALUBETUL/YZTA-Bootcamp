@@ -160,6 +160,18 @@ def preprocess_pipeline(df: pd.DataFrame,
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
 
+    # 5b. Test seti customerID'lerini kaydet (Streamlit arama için)
+    if customer_ids is not None:
+        # X_test.index, orijinal DataFrame'deki satır numaralarını içerir
+        test_ids_arr = customer_ids[X_test.index.to_numpy()]
+        test_ids_df = pd.DataFrame({
+            "customerID": test_ids_arr,
+            "test_row": range(len(X_test)),   # X_test içindeki pozisyon
+        })
+        PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+        test_ids_df.to_csv(PROCESSED_DIR / "test_ids.csv", index=False)
+        print(f"✅ Test set customerID'leri kaydedildi: {len(test_ids_df)} müşteri")
+
     # 6. Ölçeklendirme
     X_train, X_test = scale_features(X_train, X_test)
 
