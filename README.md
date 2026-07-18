@@ -111,7 +111,7 @@ Train/Test ayrımı gerçekleştirilmeye başlandı. <br>
 
 <img width="1470" height="802" alt="Screenshot 2026-07-05 at 12 57 32" src="https://github.com/user-attachments/assets/ac51c2e0-4a9c-49e1-9b7e-1a075d48f61c" />
 
-# Ürün Durumu
+## Ürün Durumu
 
 Sprint 1 sonunda projenin temel veri hazırlama süreci başarıyla tamamlanmıştır. Telco Customer Churn veri seti sisteme aktarılmış, veri temizleme ve ön işleme adımları uygulanmış, eksik veriler giderilmiş ve gerekli veri dönüşümleri gerçekleştirilmiştir. Ayrıca gerçekleştirilen Keşifsel Veri Analizi (EDA) ile veri setinin yapısı, müşteri davranışları ve churn ile ilişkili temel değişkenler analiz edilmiştir.
 
@@ -155,6 +155,88 @@ Bir sonraki sprintte LLM destekli kişiselleştirilmiş mesaj üretimi ve kullan
 
 <details>
 <summary><h3>Sprint2</h3></summary>
+
+## Sprint Goal ve Story Seçimleri
+
+Makine öğrenmesi modelinin performansını artırmak, modeli açıklanabilir hale getirmek ve uygulamanın temel kullanıcı arayüzünü oluşturmaya başlamak.
+Sprint 1 sonunda veri hazırlama ve ön işleme süreci tamamlandığından, Sprint 2 kapsamında ürünün yapay zekâ katmanının geliştirilmesine odaklanılmıştır. Bu sprintte öncelik; churn tahmin modelinin optimize edilmesi, model çıktılarının açıklanabilir hale getirilmesi ve uygulamanın temel ekranlarının geliştirilmesine verilmiştir.
+
+- XGBoost modelinin geliştirilmesi ve optimize edilmesi <br>
+- Model performansının değerlendirilmesi <br>
+- SHAP entegrasyonunun gerçekleştirilmesi <br>
+- SHAP Feature Importance ve görselleştirmelerinin hazırlanması <br>
+- SHAP çıktılarının LLM'e uygun hale getirilmesi <br>
+- Streamlit uygulamasının oluşturulması <br>
+- Müşteri analiz ekranının geliştirilmesi <br>
+- Mesaj üretim ekranının geliştirilmesi <br>
+- Dashboard geliştirmelerine başlanması <br>
+- Prompt Engineering çalışmalarına başlanması <br>
+- UI/UX tasarım çalışmalarına başlanması <br>
+
+## Daily Scrum
+
+## 1. Gün
+
+Sprint planlaması gerçekleştirildi. <br>
+XGBoost modeli optimize edilmeye başlandı. <br>
+
+## 2. Gün
+
+Model performans metrikleri değerlendirildi. <br>
+SHAP entegrasyon çalışmaları başlatıldı. <br>
+
+## 3. Gün
+
+SHAP Feature Importance ve görselleştirmeleri oluşturuldu. <br>
+Risk faktörlerinin yorumlanması üzerinde çalışıldı. <br>
+
+## 4. Gün
+
+Streamlit uygulamasının temel sayfaları geliştirildi. <br>
+Müşteri analiz ekranı oluşturuldu. <br>
+
+## 5. Gün
+
+Dashboard tasarımı ve kullanıcı arayüzü geliştirmeleri sürdürüldü. <br>
+Prompt Engineering çalışmaları devam etti. <br>
+
+## Sprint Board Screenshot
+
+<img width="1470" height="800" alt="Screenshot 2026-07-18 at 21 43 55" src="https://github.com/user-attachments/assets/e4323c94-399d-4367-9eef-8574bae3baf0" />
+
+## Ürün Durumu
+
+Sprint 2 sonunda ürünün makine öğrenmesi modeli geliştirilmiş ve performans değerlendirmeleri tamamlanmıştır. Ayrıca model tahminlerini açıklamak amacıyla SHAP entegrasyonu gerçekleştirilmiş ve temel görselleştirmeler hazırlanmıştır.
+
+Bunun yanında Streamlit tabanlı uygulamanın temel altyapısı oluşturulmuş, müşteri analiz ekranı ile mesaj üretim ekranı geliştirilmiştir. Dashboard tasarımı, kullanıcı arayüzü iyileştirmeleri ve prompt geliştirme çalışmaları ise bir sonraki sprintte tamamlanacaktır.
+
+### Gerçekleştirilen Özellikler
+
+-  Churn tahmin modeli <br>
+-  Model performans değerlendirmeleri <br>
+-  SHAP tabanlı açıklanabilir yapay zekâ <br>
+-  SHAP görselleştirmeleri <br>
+-  Streamlit uygulama altyapısı <br>
+-  Müşteri analiz ekranı <br>
+-  Mesaj üretim ekranı <br>
+
+******* GÖRSEL EKLENECEK ******
+
+## Sprint Review
+
+Sprint hedeflerinin büyük bölümü başarıyla tamamlanmıştır. Model geliştirme ve açıklanabilir yapay zekâ entegrasyonu planlandığı şekilde ilerlemiş, ürünün temel Streamlit altyapısı oluşturulmuştur. Dashboard tasarımı ve kullanıcı deneyimi geliştirmeleri devam etmekte olup, bu çalışmaların Sprint 3 içerisinde tamamlanması planlanmaktadır.
+
+## Sprint Retrospective
+
+  -  Güçlü Yönler <br>
+- Model geliştirme süreci planlandığı şekilde ilerledi. <br>
+- SHAP entegrasyonu başarıyla tamamlandı. <br>
+- Streamlit uygulamasının temel yapısı oluşturuldu. <br>
+- Takım içi iletişim düzenli şekilde sürdürüldü. <br>
+  -  Karşılaşılan Zorluklar <br>
+- Dashboard tasarımı beklenenden daha fazla geliştirme süresi gerektirdi. <br>
+- Prompt Engineering sürecinde farklı senaryolar için ek denemeler yapıldı. <br>
+
 </details>
 
 
