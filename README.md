@@ -10,7 +10,8 @@ YZTA Bootcamp project
  - Serhat AYDIN - Project Manager
 
 ## Proje İsmi
-Predictive Retention AI
+
+Churnoloji
 
 ## Backlog Link
 
