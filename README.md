@@ -220,7 +220,27 @@ Bunun yanında Streamlit tabanlı uygulamanın temel altyapısı oluşturulmuş,
 -  Müşteri analiz ekranı <br>
 -  Mesaj üretim ekranı <br>
 
-******* GÖRSEL EKLENECEK ******
+
+<img width="1600" height="900" alt="WhatsApp Image 2026-07-19 at 19 37 55" src="https://github.com/user-attachments/assets/37f44fb1-311f-4920-a218-1c1311584d9d" />
+
+- Bu ekranda müşteri verilerine ait temel risk metrikleri ve churn dağılımları görselleştirilmektedir. Dashboard sayesinde yüksek, orta ve düşük risk grubundaki müşteri sayıları ile genel churn oranı tek ekranda izlenebilmekte, filtreleme seçenekleriyle analizler daha detaylı şekilde gerçekleştirilebilmektedir. <br>
+
+<img width="1600" height="900" alt="WhatsApp Image 2026-07-19 at 19 37 56 (1)" src="https://github.com/user-attachments/assets/90feab85-ec69-44fc-840c-91087281bd7b" />  <br>
+
+- Bu ekran, SHAP analizi ile belirlenen risk faktörlerini kullanarak Groq LLM üzerinden müşteriye özel geri kazanım mesajı oluşturmaktadır. Kullanıcı mesaj tonu ve model seçimi yaparak churn riski yüksek müşteriler için kişiselleştirilmiş öneriler üretebilmektedir. <br>
+
+<img width="1600" height="900" alt="WhatsApp Image 2026-07-19 at 19 37 55 (1)" src="https://github.com/user-attachments/assets/969fb9ec-cf38-4b33-b74f-c6523f9a250f" />  <br>
+
+- Oluşturulan kişiselleştirilmiş mesajlar, gönderim öncesinde e-posta formatında önizlenebilmektedir. Böylece CRM ekipleri müşteriye iletilecek içeriği inceleyebilir, gerekli düzenlemeleri yapabilir ve son hâliyle dışa aktarabilir.  <br>
+
+<img width="1600" height="900" alt="WhatsApp Image 2026-07-19 at 19 37 56 (3)" src="https://github.com/user-attachments/assets/3c049736-254f-4214-a100-596404e04b92" />  <br>
+
+- Bu sayfada seçilen müşteriye ait churn olasılığı ve risk seviyesi görüntülenmektedir. Aynı zamanda SHAP analizi ile riski artıran ve azaltan temel faktörler kullanıcıya açıklanabilir yapay zekâ yaklaşımıyla sunulmaktadır.  <br>
+
+<img width="1600" height="900" alt="WhatsApp Image 2026-07-19 at 19 37 56 (2)" src="https://github.com/user-attachments/assets/584b8853-b3b3-4ebd-bf6c-016a703b4e48" />  <br>
+
+- Model tahminlerini etkileyen değişkenler SHAP Waterfall, Feature Importance ve Beeswarm görselleştirmeleri ile analiz edilmektedir. Bu sayede yalnızca churn tahmini yapılmakla kalmayıp, tahmini oluşturan en önemli risk faktörleri de kullanıcıya anlaşılır biçimde gösterilmektedir.  <br>
+
 
 ## Sprint Review
 
