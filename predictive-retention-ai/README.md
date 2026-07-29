@@ -8,6 +8,15 @@ Telekomünikasyon sektöründe müşteri kaybını (churn) önlemek için geliş
 - **Açıklanabilirlik (XAI)** — SHAP ile "neden gidiyor?" sorusunun cevabı
 - **Kişiselleştirilmiş Mesaj** — Groq AI (llama-3.3-70b) ile geri kazanım e-postası üretimi
 - **İnteraktif Dashboard** — Streamlit ile görsel risk analizi paneli
+- **Canlı Tahmin** — CustomerID arama ve yeni müşteri formu
+- **Karar Desteği** — Precision-Recall, confusion matrix ve maliyet bazlı risk eşiği
+- **Model Karşılaştırması** — Leakage-safe CV ile Logistic Regression, Random Forest ve XGBoost
+- **Yönetici Özeti** — Yüksek riskli müşteri grubu için indirilebilir LLM raporu
+- **Kalibre Risk Skorları** — Out-of-fold Platt kalibrasyonu ve güvenilirlik raporu
+- **Next Best Action** — Teklif maliyeti, müşteri değeri ve beklenen net değer hesabı
+- **Model Güveni** — Veri drift, performans ve segment bazlı hata analizi
+- **Kampanya Operasyonları** — A/B ataması, ölçülen uplift, insan onayı ve audit geçmişi
+- **CRM Aktarımı** — Yalnızca onaylı kayıtlar için CSV veya HTTPS webhook
 
 ## 📦 Kurulum
 
@@ -27,6 +36,18 @@ python train.py
 streamlit run app/streamlit_app.py
 ```
 
+Veri seti hem proje içindeki `data/raw/` klasöründen hem de üst repository
+klasöründen otomatik olarak bulunur. Eski veya eksik model artefaktı tespit
+edilirse uygulamadaki **Veriyi ve Modeli Hazırla** butonu güvenli biçimde
+yeniden eğitim başlatır.
+
+### Testler
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests -q
+```
+
 ## 🗂️ Proje Yapısı
 
 ```
@@ -36,11 +57,14 @@ predictive-retention-ai/
 │   └── processed/    # Eğitilmiş veri split'leri
 ├── src/
 │   ├── data/         # Veri yükleme ve ön işleme
-│   ├── models/       # XGBoost model pipeline
+│   ├── models/       # XGBoost, model karşılaştırma ve kalibrasyon
+│   ├── features/     # Segmentasyon ve retention decisioning
+│   ├── monitoring/   # Drift ve grup hata analizi
+│   ├── operations/   # A/B test, onay, audit ve CRM adaptörü
 │   ├── xai/          # SHAP açıklanabilirlik
 │   └── llm/          # Groq API entegrasyonu
 ├── app/
-│   └── streamlit_app.py  # 3 sayfalı web arayüzü
+│   └── streamlit_app.py  # 4 sayfalı web arayüzü
 ├── models/           # Eğitilmiş model dosyaları
 ├── train.py          # Model eğitim script'i
 └── requirements.txt
@@ -82,15 +106,41 @@ python train.py
 
 # Optuna ile hiperparametre optimizasyonu (daha uzun sürer)
 python train.py --optimize
+
+# Baseline modelleri leakage-safe cross-validation ile karşılaştır
+python train.py --compare
+
+# Optimizasyon ve karşılaştırmayı birlikte çalıştır
+python train.py --optimize --compare
 ```
 
 ### Streamlit Arayüzü
 
-Uygulama 3 sayfadan oluşur:
+Uygulama 4 sayfadan oluşur:
 
-1. **📊 Ana Dashboard** — Tüm müşterilerin risk dağılımı ve yüksek riskli müşteri tablosu
-2. **👤 Müşteri Analizi** — Tek müşteri detay analizi + SHAP waterfall grafiği
-3. **✉️ Mesaj Üretici** — Groq AI ile kişiselleştirilmiş geri kazanım e-postası
+1. **📊 Ana Dashboard** — Risk tablosu, segmentler, yönetici özeti, model performansı ve maliyet bazlı eşik
+2. **👤 Müşteri Analizi** — CustomerID arama, yeni müşteri tahmini ve SHAP açıklamaları
+3. **✉️ Mesaj Üretici** — Groq AI ile düzenlenebilir, indirilebilir ve kopyalanabilir geri kazanım e-postası
+4. **Retention Operasyonları** — Kalibrasyon, drift/fairness, A/B uplift, onay/audit ve CRM aktarımı
+
+Next Best Action ekranındaki uplift değerleri başlangıçta açıkça işaretlenmiş
+senaryo varsayımlarıdır. Uygulama treatment/control sonuçlarını kaydettikçe
+ölçülen retention uplift değerini ayrıca gösterir; churn veri setinden nedensel
+etki varmış gibi bir sonuç üretmez.
+
+Model eğitimi aşağıdaki yeniden üretilebilir raporları oluşturur:
+
+- `models/model_metadata.json`
+- `models/evaluation_report.json`
+- `models/model_comparison.json` (`--compare` kullanıldığında)
+- `models/probability_calibrator.pkl`
+- `models/calibration_report.json`
+- `models/drift_reference.json`
+
+Mesaj ve teklif kayıtları yerel `data/operations.db` SQLite veritabanında
+tutulur. CRM webhook aktarımı yalnızca insan tarafından onaylanan kayıtlar için,
+arayüzdeki açık gönderme işlemiyle çalışır. Bearer token gerekiyorsa
+`.env` içinde `CRM_WEBHOOK_TOKEN` tanımlanabilir.
 
 ## 🔑 Groq API Kurulumu
 
