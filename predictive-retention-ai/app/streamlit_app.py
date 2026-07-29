@@ -4,6 +4,9 @@ Predictive Retention AI — Ana Streamlit Uygulaması
 Sprint 3: Segmentasyon, gelişmiş filtreler, Plotly SHAP, benzer müşteri
 """
 
+import base64
+import html
+import json
 import sys
 import os
 from pathlib import Path
@@ -12,6 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -19,24 +23,44 @@ import plotly.graph_objects as go
 import joblib
 import shap
 import matplotlib.pyplot as plt
+from sklearn.metrics import (
+    auc, confusion_matrix, f1_score, precision_recall_curve,
+    precision_score, recall_score, roc_curve,
+)
 import warnings
 warnings.filterwarnings("ignore")
 
 from src.data.loader import load_raw_data
 from src.data.preprocessor import preprocess_pipeline, preprocess_single_customer
 from src.models.xgboost_model import (
-    train_xgboost, evaluate_model, save_model, load_model, predict_proba_single
+    train_xgboost, evaluate_model, save_model, load_model, predict_proba_single,
+    validate_model_features, find_cost_optimal_threshold, save_evaluation_report,
+)
+from src.models.model_comparison import (
+    compare_models, load_model_comparison, save_model_comparison,
+)
+from src.models.calibration import (
+    calibration_report, fit_oof_calibrator, load_calibrator, save_calibration,
 )
 from src.xai.shap_explainer import (
     get_shap_explainer, compute_shap_values, get_top_factors,
     format_shap_factors_for_llm, get_global_feature_importance,
     plot_waterfall_plotly, plot_beeswarm_plotly,
 )
-from src.llm.prompt_builder import build_retention_prompt
-from src.llm.retention_writer import generate_retention_message
+from src.llm.prompt_builder import build_retention_prompt, build_batch_summary_prompt
+from src.llm.retention_writer import (
+    generate_retention_message, generate_batch_summary,
+)
 from src.features.segmentation import (
     run_kmeans_segmentation, get_segment_profiles, plot_segments_plotly,
 )
+from src.features.retention_decisioning import recommend_next_best_action
+from src.monitoring.model_monitor import (
+    build_reference_profile, calculate_drift, group_error_analysis,
+    save_reference_profile,
+)
+from src.operations.governance import OperationsStore, validate_retention_message
+from src.operations.crm import approved_records_dataframe, send_to_crm_webhook
 
 # ─── Sayfa Konfigürasyonu ────────────────────────────────────────────────────
 st.set_page_config(
@@ -169,12 +193,17 @@ st.markdown("""
         display: none;
     }
 
-    /* Sidebar slider & multiselect */
-    [data-testid="stSidebar"] .stSlider > div > div > div {
-        background: #C9B99A !important;
+    /* Sidebar slider labels
+       Keep these selectors semantic: broad nested-div selectors also paint
+       Streamlit's value and min/max labels, making their text unreadable. */
+    [data-testid="stSidebar"] [data-testid="stSliderThumbValue"],
+    [data-testid="stSidebar"] [data-testid="stSliderTickBar"] {
+        background: transparent !important;
+        color: #6B5744 !important;
     }
-    [data-testid="stSidebar"] .stSlider > div > div > div > div {
-        background: #2C2416 !important;
+    [data-testid="stSidebar"] [data-testid="stSliderThumbValue"] *,
+    [data-testid="stSidebar"] [data-testid="stSliderTickBar"] * {
+        color: #6B5744 !important;
     }
 
     /* Multiselect tags */
@@ -299,14 +328,74 @@ def load_scaler():
     return None
 
 
+@st.cache_resource(show_spinner=False)
+def load_probability_calibrator():
+    """Load the sidecar calibrator while keeping XGBoost explainable by SHAP."""
+    return load_calibrator()
+
+
+@st.cache_data(show_spinner=False)
+def load_drift_reference():
+    path = MODELS_DIR / "drift_reference.json"
+    if path.exists():
+        with path.open(encoding="utf-8") as handle:
+            return json.load(handle)
+    return None
+
+
 @st.cache_data(show_spinner=False)
 def load_processed_data():
-    """İşlenmiş verileri yükler."""
+    """İşlenmiş model verisini ve aynı sıradaki ham test satırlarını yükler."""
     X_test_path = DATA_DIR / "processed" / "X_test.csv"
     y_test_path = DATA_DIR / "processed" / "y_test.csv"
-    if X_test_path.exists() and y_test_path.exists():
-        return pd.read_csv(X_test_path), pd.read_csv(y_test_path).squeeze()
+    raw_test_path = DATA_DIR / "processed" / "raw_test.csv"
+    if X_test_path.exists() and y_test_path.exists() and raw_test_path.exists():
+        return (
+            pd.read_csv(X_test_path),
+            pd.read_csv(y_test_path).squeeze(),
+            pd.read_csv(raw_test_path),
+        )
+    return None, None, None
+
+
+@st.cache_data(show_spinner=False)
+def load_base_training_data():
+    """SMOTE öncesi eğitim verisini model karşılaştırması için yükler."""
+    X_path = DATA_DIR / "processed" / "X_train_base.csv"
+    y_path = DATA_DIR / "processed" / "y_train_base.csv"
+    if X_path.exists() and y_path.exists():
+        return pd.read_csv(X_path), pd.read_csv(y_path).squeeze()
     return None, None
+
+
+def copy_to_clipboard_button(text: str, key: str = "copy_message"):
+    """Render a browser-side clipboard button without sending text elsewhere."""
+    encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+    components.html(
+        f"""
+        <button id="{key}" style="
+            background:#2C2416;color:#F5F0E8;border:0;border-radius:9px;
+            padding:10px 18px;font:500 14px sans-serif;cursor:pointer;">
+            Panoya Kopyala
+        </button>
+        <span id="{key}-status" style="margin-left:10px;color:#6B5744;font:13px sans-serif;"></span>
+        <script>
+        const button = document.getElementById("{key}");
+        const status = document.getElementById("{key}-status");
+        button.addEventListener("click", async () => {{
+            const bytes = Uint8Array.from(atob("{encoded}"), c => c.charCodeAt(0));
+            const value = new TextDecoder().decode(bytes);
+            try {{
+                await navigator.clipboard.writeText(value);
+                status.textContent = "Kopyalandı";
+            }} catch (error) {{
+                status.textContent = "Tarayıcı izni gerekli";
+            }}
+        }});
+        </script>
+        """,
+        height=48,
+    )
 
 
 def risk_badge(prob: float) -> str:
@@ -338,12 +427,77 @@ def load_test_ids():
 
 @st.cache_data(show_spinner=False)
 def get_raw_test_subset():
-    """Ham veriden test satırlarını döndürür (filtreler için)."""
-    X_test, _ = load_processed_data()
-    df_raw = load_data()
-    if X_test is None or df_raw is None:
-        return None
-    return df_raw.iloc[X_test.index].reset_index(drop=True)
+    """Model test satırlarıyla birebir hizalı ham müşteri verisini döndürür."""
+    _, _, raw_test = load_processed_data()
+    return raw_test
+
+
+def get_runtime_artifact_issues() -> list[str]:
+    """Eksik, eski veya birbiriyle uyumsuz çalışma artefaktlarını tespit eder."""
+    required_paths = {
+        "model": MODELS_DIR / "xgboost_model.pkl",
+        "model metadata": MODELS_DIR / "model_metadata.json",
+        "scaler": MODELS_DIR / "scaler.pkl",
+        "işlenmiş test verisi": DATA_DIR / "processed" / "X_test.csv",
+        "test hedefleri": DATA_DIR / "processed" / "y_test.csv",
+        "SMOTE öncesi eğitim verisi": DATA_DIR / "processed" / "X_train_base.csv",
+        "SMOTE öncesi eğitim hedefleri": DATA_DIR / "processed" / "y_train_base.csv",
+        "ham eğitim referansı": DATA_DIR / "processed" / "raw_train.csv",
+        "ham test eşleşmesi": DATA_DIR / "processed" / "raw_test.csv",
+        "preprocessing metadata": DATA_DIR / "processed" / "preprocessing_metadata.json",
+        "olasılık kalibratörü": MODELS_DIR / "probability_calibrator.pkl",
+        "kalibrasyon raporu": MODELS_DIR / "calibration_report.json",
+        "drift referansı": MODELS_DIR / "drift_reference.json",
+    }
+    issues = [
+        f"Eksik: {label}"
+        for label, path in required_paths.items()
+        if not path.exists()
+    ]
+    if issues:
+        return issues
+
+    try:
+        model = load_trained_model()
+        X_test, y_test, raw_test = load_processed_data()
+        issues.extend(validate_model_features(model, X_test))
+        if not (len(X_test) == len(y_test) == len(raw_test)):
+            issues.append("İşlenmiş veri, hedef ve ham müşteri satır sayıları uyuşmuyor.")
+    except Exception as exc:
+        issues.append(f"Artefaktlar yüklenemedi: {exc}")
+    return issues
+
+
+def build_single_prediction(
+    model,
+    customer: dict,
+    feature_names: list[str],
+) -> dict:
+    """Transform and explain one raw customer using the training contract."""
+    processed = preprocess_single_customer(
+        customer,
+        feature_names=feature_names,
+    )
+    feature_issues = validate_model_features(model, processed)
+    if feature_issues:
+        raise ValueError(" ".join(feature_issues))
+    _, raw_probability = predict_proba_single(model, processed)
+    calibrator = load_probability_calibrator()
+    probability = (
+        float(calibrator.predict([raw_probability])[0])
+        if calibrator is not None else raw_probability
+    )
+    explainer = get_shap_explainer(model)
+    shap_values = explainer.shap_values(processed)[0]
+    factors = get_top_factors(
+        shap_values, list(processed.columns), top_n=5
+    )
+    return {
+        "probability": probability,
+        "raw_probability": raw_probability,
+        "factors": factors,
+        "customer": customer,
+    }
 
 
 def find_similar_customers(X_test: pd.DataFrame, customer_idx: int, n: int = 5) -> list:
@@ -387,10 +541,14 @@ def apply_filters(
     X_f = X_test[mask].reset_index(drop=True)
     y_f = y_proba[mask]
     y_t = y_test.values[mask] if y_test is not None else None
-    return X_f, y_f, y_t, mask
+    raw_f = raw_subset[mask].reset_index(drop=True) if raw_subset is not None else None
+    return X_f, y_f, y_t, raw_f, mask
 
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
+
+artifact_issues = get_runtime_artifact_issues()
+artifacts_ready = not artifact_issues
 
 with st.sidebar:
     # Logo & başlık
@@ -407,8 +565,8 @@ with st.sidebar:
     # — Navigasyon —
     st.markdown('<div class="sidebar-section">Sayfalar</div>', unsafe_allow_html=True)
     page = st.radio(
-        "",
-        ["Ana Dashboard", "Müşteri Analizi", "Mesaj Üretici"],
+        "Sayfalar",
+        ["Ana Dashboard", "Müşteri Analizi", "Mesaj Üretici", "Retention Operasyonları"],
         label_visibility="collapsed",
     )
 
@@ -416,8 +574,7 @@ with st.sidebar:
 
     # — Model durumu —
     st.markdown('<div class="sidebar-section">Model</div>', unsafe_allow_html=True)
-    model_exists = (MODELS_DIR / "xgboost_model.pkl").exists()
-    if model_exists:
+    if artifacts_ready:
         st.markdown(
             '<div style="background:#F0EAE0;border:1px solid #DDD0BF;border-radius:8px;'
             'padding:9px 14px;font-size:0.85em;color:#4A7C59;font-weight:500;">'
@@ -425,8 +582,11 @@ with st.sidebar:
             unsafe_allow_html=True,
         )
     else:
-        st.warning("Model eğitilmedi")
-        if st.button("Modeli Eğit", key="train_btn"):
+        st.warning("Model/veri artefaktları hazır değil")
+        with st.expander("Detay"):
+            for issue in artifact_issues:
+                st.caption(f"• {issue}")
+        if st.button("Veriyi ve Modeli Hazırla", key="train_btn"):
             st.session_state["train_model"] = True
 
     st.markdown('<hr style="border-color:#E8DDD0;margin:18px 0;">', unsafe_allow_html=True)
@@ -435,10 +595,11 @@ with st.sidebar:
     st.markdown('<div class="sidebar-section">Risk Eşiği</div>', unsafe_allow_html=True)
     risk_threshold = st.slider(
         "Yüksek risk sınırı",
-        min_value=0.3, max_value=0.9, value=0.7, step=0.05,
+        min_value=0.05, max_value=0.95,
+        value=float(st.session_state.get("risk_threshold", 0.7)), step=0.01,
         format="%.2f",
+        key="risk_threshold",
     )
-    st.session_state["risk_threshold"] = risk_threshold
 
     st.markdown('<hr style="border-color:#E8DDD0;margin:18px 0;">', unsafe_allow_html=True)
 
@@ -482,18 +643,38 @@ with st.sidebar:
 
 # ─── Model Eğitimi ───────────────────────────────────────────────────────────
 
-if st.session_state.get("train_model") and not (MODELS_DIR / "xgboost_model.pkl").exists():
+if st.session_state.get("train_model"):
     with st.spinner("Model eğitiliyor... (bu işlem 1-2 dakika sürebilir)"):
         try:
             df = load_data()
             results = preprocess_pipeline(df)
             model = train_xgboost(results["X_train"], results["y_train"])
             metrics = evaluate_model(model, results["X_test"], results["y_test"])
-            save_model(model)
+            save_model(model, metrics=metrics)
+            save_evaluation_report(metrics, model_params=model.get_params())
+            calibrator, _ = fit_oof_calibrator(
+                model,
+                results["X_train_unbalanced"],
+                results["y_train_unbalanced"],
+            )
+            calibrated_test = calibrator.predict(metrics["y_proba"])
+            save_calibration(
+                calibrator,
+                calibration_report(results["y_test"], metrics["y_proba"], calibrated_test),
+            )
+            save_reference_profile(
+                build_reference_profile(results["raw_train"]),
+                MODELS_DIR / "drift_reference.json",
+            )
             st.session_state["last_metrics"] = metrics
             st.session_state["feature_names"] = results["feature_names"]
             load_trained_model.clear()
             load_processed_data.clear()
+            load_base_training_data.clear()
+            load_probability_calibrator.clear()
+            load_drift_reference.clear()
+            load_test_ids.clear()
+            get_raw_test_subset.clear()
             st.success(f"Model başarıyla eğitildi. F1 Skoru: {metrics['f1_score']:.3f} | ROC-AUC: {metrics['roc_auc']:.3f}")
             st.session_state["train_model"] = False
             st.rerun()
@@ -507,24 +688,28 @@ if page == "Ana Dashboard":
     st.markdown("*Tüm müşteriler için risk skorları, filtreler ve segmentasyon*")
     st.markdown("---")
 
-    model = load_trained_model()
+    model = load_trained_model() if artifacts_ready else None
 
     if model is None:
-        st.info("Henüz bir model eğitilmedi. Analize başlamak için sol menüden Modeli Eğit butonuna tıklayın.")
+        st.info("Analize başlamak için sol menüden Veriyi ve Modeli Hazırla butonuna tıklayın.")
     else:
-        X_test_full, y_test_full = load_processed_data()
+        X_test_full, y_test_full, raw_subset = load_processed_data()
 
         if X_test_full is None:
-            st.warning("İşlenmiş test verisi bulunamadı. Lütfen modeli yeniden eğitin.")
+            st.warning("Uyumlu test verisi bulunamadı. Lütfen modeli yeniden hazırlayın.")
         else:
-            y_proba_full = model.predict_proba(X_test_full)[:, 1]
-            raw_subset = get_raw_test_subset()
+            raw_proba_full = model.predict_proba(X_test_full)[:, 1]
+            calibrator = load_probability_calibrator()
+            y_proba_full = (
+                calibrator.predict(raw_proba_full)
+                if calibrator is not None else raw_proba_full
+            )
 
             contract_sel = st.session_state.get("filter_contract", ["Month-to-month", "One year", "Two year"])
             tenure_range = st.session_state.get("filter_tenure", (0, 72))
             charges_range = st.session_state.get("filter_charges", (0, 120))
 
-            X_test, y_proba, y_test_arr, mask = apply_filters(
+            X_test, y_proba, y_test_arr, raw_filtered, mask = apply_filters(
                 X_test_full, y_proba_full, y_test_full, raw_subset,
                 contract_sel, tenure_range, charges_range,
             )
@@ -552,7 +737,9 @@ if page == "Ana Dashboard":
                     st.metric("Ortalama Risk", f"%{avg_risk*100:.1f}")
 
                 st.markdown("---")
-                tab_risk, tab_seg = st.tabs(["Risk Tablosu", "Müşteri Segmentleri"])
+                tab_risk, tab_seg, tab_perf = st.tabs([
+                    "Risk Tablosu", "Müşteri Segmentleri", "Model Performansı",
+                ])
 
                 with tab_risk:
                     col_a, col_b = st.columns(2)
@@ -571,7 +758,7 @@ if page == "Ana Dashboard":
                                               plot_bgcolor="rgba(0,0,0,0)",
                                               font_color="#2C2416",
                                               legend=dict(bgcolor="rgba(0,0,0,0)"))
-                        st.plotly_chart(fig_pie, use_container_width=True, theme=None)
+                        st.plotly_chart(fig_pie, width="stretch", theme=None)
 
                     with col_b:
                         st.markdown("#### Churn Olasılığı Dağılımı")
@@ -582,7 +769,7 @@ if page == "Ana Dashboard":
                                            annotation_text="Risk Eşiği", annotation_font_color="#ff4b4b")
                         fig_hist.update_layout(paper_bgcolor="rgba(0,0,0,0)",
                                                plot_bgcolor="rgba(255,253,248,0.5)", font_color="#2C2416")
-                        st.plotly_chart(fig_hist, use_container_width=True, theme=None)
+                        st.plotly_chart(fig_hist, width="stretch", theme=None)
 
                     st.markdown("---")
                     st.markdown(f"#### Yüksek Riskli Müşteriler (Eşik: %{threshold*100:.0f})")
@@ -591,27 +778,59 @@ if page == "Ana Dashboard":
                     if len(high_risk_idx) == 0:
                         st.info("Seçilen eşikte yüksek riskli müşteri bulunamadı.")
                     else:
-                        risk_df = X_test.iloc[high_risk_idx].copy()
+                        risk_df = raw_filtered.iloc[high_risk_idx].copy()
                         risk_df["Churn Olasılığı"] = y_proba[high_risk_idx]
                         risk_df["Risk Seviyesi"] = risk_df["Churn Olasılığı"].apply(risk_badge)
                         if y_test_arr is not None:
                             risk_df["Gerçek Değer"] = y_test_arr[high_risk_idx]
-                        display_cols = [c for c in ["tenure", "MonthlyCharges", "TotalCharges",
+                        display_cols = [c for c in ["customerID", "Contract", "tenure",
+                                        "MonthlyCharges", "TotalCharges",
                                         "Churn Olasılığı", "Risk Seviyesi", "Gerçek Değer"]
                                         if c in risk_df.columns]
                         display_df = risk_df[display_cols].copy()
                         display_df["Churn Olasılığı"] = display_df["Churn Olasılığı"].apply(
                             lambda x: f"%{x*100:.1f}")
-                        st.dataframe(display_df.head(50), use_container_width=True, height=300)
+                        st.dataframe(display_df.head(50), width="stretch", height=300)
                         csv = risk_df.to_csv(index=False).encode("utf-8")
                         st.download_button("CSV İndir", csv,
                                            "yuksek_riskli_musteriler.csv", "text/csv", key="download_risk")
+
+                        st.markdown("#### Yönetici Özet Raporu")
+                        if st.button("Yönetici Özeti Oluştur", key="generate_manager_summary"):
+                            summary_customers = [
+                                {
+                                    "id": row.get("customerID", "?"),
+                                    "churn_prob": row["Churn Olasılığı"],
+                                    "tenure": row.get("tenure", "?"),
+                                    "MonthlyCharges": row.get("MonthlyCharges", "?"),
+                                }
+                                for _, row in risk_df.head(10).iterrows()
+                            ]
+                            summary_prompt = build_batch_summary_prompt(summary_customers)
+                            with st.spinner("Yönetici özeti hazırlanıyor..."):
+                                st.session_state["manager_summary"] = generate_batch_summary(
+                                    summary_prompt
+                                )
+                        if "manager_summary" in st.session_state:
+                            summary = st.text_area(
+                                "Rapor",
+                                value=st.session_state["manager_summary"],
+                                height=220,
+                                key="manager_summary_editor",
+                            )
+                            st.download_button(
+                                "Raporu İndir",
+                                summary,
+                                "yonetici_ozet_raporu.txt",
+                                "text/plain",
+                                key="download_manager_summary",
+                            )
 
                 with tab_seg:
                     st.markdown("#### K-Means Müşteri Segmentasyonu")
                     st.markdown("*tenure, MonthlyCharges, TotalCharges ve Churn Riski baz alınarak 4 segment.*")
                     with st.spinner("Segmentasyon hesaplanıyor..."):
-                        seg_df = run_kmeans_segmentation(X_test, y_proba, n_clusters=4)
+                        seg_df = run_kmeans_segmentation(raw_filtered, y_proba, n_clusters=4)
                         profiles = get_segment_profiles(seg_df)
 
                     seg_colors = ["#ff4b4b", "#ffa500", "#4361ee", "#00c864"]
@@ -628,14 +847,129 @@ if page == "Ana Dashboard":
                                 f'</div>', unsafe_allow_html=True)
 
                     st.markdown("")
-                    st.plotly_chart(plot_segments_plotly(seg_df), use_container_width=True, theme=None)
+                    st.plotly_chart(plot_segments_plotly(seg_df), width="stretch", theme=None)
                     st.markdown("#### Segment Profilleri")
                     dp = profiles.drop(columns=["segment"]).copy()
                     dp["Ort. Risk"] = dp["Ort. Risk"].apply(lambda x: f"%{x*100:.1f}")
                     for col in ["Ort. Tenure (ay)", "Ort. Aylık Ücret ($)", "Ort. Toplam Ücret ($)"]:
                         if col in dp.columns:
                             dp[col] = dp[col].apply(lambda x: f"{x:.1f}")
-                    st.dataframe(dp, use_container_width=True, hide_index=True)
+                    st.dataframe(dp, width="stretch", hide_index=True)
+
+                with tab_perf:
+                    st.markdown("#### Sınıflandırma Performansı")
+                    eval_threshold = st.session_state.get("risk_threshold", 0.7)
+                    y_eval = np.asarray(y_test_arr)
+                    y_pred_eval = (y_proba >= eval_threshold).astype(int)
+                    cm = confusion_matrix(y_eval, y_pred_eval, labels=[0, 1])
+
+                    metric_cols = st.columns(4)
+                    metric_cols[0].metric(
+                        "Precision", f"{precision_score(y_eval, y_pred_eval, zero_division=0):.3f}"
+                    )
+                    metric_cols[1].metric(
+                        "Recall", f"{recall_score(y_eval, y_pred_eval, zero_division=0):.3f}"
+                    )
+                    metric_cols[2].metric(
+                        "F1", f"{f1_score(y_eval, y_pred_eval, zero_division=0):.3f}"
+                    )
+
+                    fpr, tpr, _ = roc_curve(y_eval, y_proba)
+                    precision_curve, recall_curve, _ = precision_recall_curve(y_eval, y_proba)
+                    roc_auc_value = auc(fpr, tpr)
+                    pr_auc_value = auc(recall_curve[::-1], precision_curve[::-1])
+                    metric_cols[3].metric("PR-AUC", f"{pr_auc_value:.3f}")
+
+                    chart_left, chart_right = st.columns(2)
+                    with chart_left:
+                        fig_cm = px.imshow(
+                            cm,
+                            text_auto=True,
+                            x=["Aktif Tahmin", "Churn Tahmin"],
+                            y=["Aktif Gerçek", "Churn Gerçek"],
+                            color_continuous_scale=["#FFFDF8", "#D34E4E"],
+                            title=f"Confusion Matrix — Eşik {eval_threshold:.2f}",
+                        )
+                        fig_cm.update_layout(coloraxis_showscale=False)
+                        st.plotly_chart(fig_cm, width="stretch")
+
+                    with chart_right:
+                        fig_curves = go.Figure()
+                        fig_curves.add_trace(go.Scatter(
+                            x=fpr, y=tpr, name=f"ROC (AUC={roc_auc_value:.3f})"
+                        ))
+                        fig_curves.add_trace(go.Scatter(
+                            x=recall_curve,
+                            y=precision_curve,
+                            name=f"Precision-Recall (AUC={pr_auc_value:.3f})",
+                        ))
+                        fig_curves.update_layout(
+                            title="ROC ve Precision-Recall Eğrileri",
+                            xaxis_title="FPR / Recall",
+                            yaxis_title="TPR / Precision",
+                            paper_bgcolor="rgba(0,0,0,0)",
+                            plot_bgcolor="rgba(255,253,248,0.5)",
+                        )
+                        st.plotly_chart(fig_curves, width="stretch")
+
+                    st.markdown("---")
+                    st.markdown("#### İş Maliyetine Göre Önerilen Eşik")
+                    cost_a, cost_b = st.columns(2)
+                    fn_cost = cost_a.number_input(
+                        "Kaçırılan churn maliyeti", min_value=1.0,
+                        value=5.0, step=1.0, key="fn_cost",
+                    )
+                    fp_cost = cost_b.number_input(
+                        "Gereksiz aksiyon maliyeti", min_value=0.1,
+                        value=1.0, step=0.5, key="fp_cost",
+                    )
+                    optimal = find_cost_optimal_threshold(
+                        y_eval, y_proba, fn_cost, fp_cost
+                    )
+                    st.info(
+                        f"Önerilen eşik: **{optimal['threshold']:.2f}** · "
+                        f"Toplam maliyet: **{optimal['cost']:.1f}** · "
+                        f"Recall: **{optimal['recall']:.3f}** · "
+                        f"False negative: **{optimal['false_negatives']}**"
+                    )
+
+                    def set_recommended_threshold(value):
+                        st.session_state["risk_threshold"] = float(value)
+
+                    st.button(
+                        "Önerilen Eşiği Uygula",
+                        key="apply_cost_threshold",
+                        on_click=set_recommended_threshold,
+                        args=(optimal["threshold"],),
+                    )
+
+                    st.markdown("---")
+                    st.markdown("#### Baseline Model Karşılaştırması")
+                    comparison = load_model_comparison()
+                    if comparison is None:
+                        st.caption(
+                            "Logistic Regression, Random Forest ve XGBoost leakage-safe "
+                            "cross-validation ile henüz karşılaştırılmadı."
+                        )
+                        if st.button("Model Karşılaştırmasını Çalıştır", key="run_comparison"):
+                            X_base, y_base = load_base_training_data()
+                            if X_base is None:
+                                st.error("SMOTE öncesi eğitim verisi bulunamadı. Modeli yeniden hazırlayın.")
+                            else:
+                                with st.spinner("Modeller karşılaştırılıyor..."):
+                                    comparison = compare_models(X_base, y_base)
+                                    save_model_comparison(comparison)
+                    if comparison is not None:
+                        comparison_display = comparison[
+                            ["model", "accuracy", "precision", "recall", "f1", "roc_auc"]
+                        ].copy()
+                        st.dataframe(
+                            comparison_display.style.format({
+                                col: "{:.3f}" for col in comparison_display.columns if col != "model"
+                            }),
+                            width="stretch",
+                            hide_index=True,
+                        )
 
 
 
@@ -647,20 +981,27 @@ elif page == "Müşteri Analizi":
     st.markdown("*Tek müşteri için detaylı risk analizi — SHAP Waterfall, Beeswarm ve Benzer Müşteriler*")
     st.markdown("---")
 
-    model = load_trained_model()
+    model = load_trained_model() if artifacts_ready else None
 
     if model is None:
         st.info("Analiz için öncelikle sol panelden modeli eğitmeniz gerekmektedir.")
     else:
-        X_test, y_test = load_processed_data()
+        X_test, y_test, raw_test = load_processed_data()
 
         if X_test is None:
             st.warning("İşlenmiş müşteri verisi bulunamadı.")
         else:
-            y_proba = model.predict_proba(X_test)[:, 1]
+            raw_proba = model.predict_proba(X_test)[:, 1]
+            calibrator = load_probability_calibrator()
+            y_proba = calibrator.predict(raw_proba) if calibrator is not None else raw_proba
 
             # ── Sekmeli Müşteri Seçimi
-            tab_idx, tab_rand = st.tabs(["Index ile Seç", "Rastgele Seç"])
+            def clear_custom_customer():
+                st.session_state["use_custom_customer"] = False
+
+            tab_idx, tab_id, tab_rand, tab_live = st.tabs([
+                "Index ile Seç", "CustomerID ile Ara", "Rastgele Seç", "Yeni Müşteri",
+            ])
             with tab_idx:
                 c1, _ = st.columns([1, 2])
                 with c1:
@@ -669,7 +1010,48 @@ elif page == "Müşteri Analizi":
                         min_value=0, max_value=len(X_test)-1,
                         value=int(st.session_state.get("customer_idx", 0)),
                         step=1, key="customer_idx",
+                        on_change=clear_custom_customer,
                     )
+            with tab_id:
+                search_customer_id = st.text_input(
+                    "CustomerID",
+                    placeholder="Örn. 7590-VHVEG",
+                    key="customer_id_search",
+                )
+                if st.button("Müşteriyi Bul", key="find_customer_id"):
+                    matches = raw_test.index[
+                        raw_test["customerID"].astype(str).str.upper()
+                        == search_customer_id.strip().upper()
+                    ].tolist()
+                    if matches:
+                        st.session_state["customer_idx"] = int(matches[0])
+                        st.session_state["use_custom_customer"] = False
+                        st.session_state.pop("searched_customer_result", None)
+                        st.success(f"Müşteri bulundu: test index {matches[0]}")
+                    else:
+                        all_customers = load_data()
+                        all_matches = all_customers[
+                            all_customers["customerID"].astype(str).str.upper()
+                            == search_customer_id.strip().upper()
+                        ]
+                        if all_matches.empty:
+                            st.error("Bu CustomerID veri setinde bulunamadı.")
+                        else:
+                            try:
+                                searched_raw = all_matches.iloc[0].drop(
+                                    labels=["Churn"]
+                                ).to_dict()
+                                searched_result = build_single_prediction(
+                                    model, searched_raw, list(X_test.columns)
+                                )
+                                st.session_state["searched_customer_result"] = searched_result
+                                st.session_state["current_customer_data"] = searched_raw
+                                st.session_state["current_shap_factors"] = searched_result["factors"]
+                                st.session_state["current_churn_prob"] = searched_result["probability"]
+                                st.session_state["use_custom_customer"] = True
+                                st.success("Müşteri bulundu ve canlı tahmin oluşturuldu.")
+                            except Exception as exc:
+                                st.error(f"Müşteri tahmin edilemedi: {exc}")
             with tab_rand:
                 st.selectbox(
                     "Risk Grubundan Seç",
@@ -689,11 +1071,115 @@ elif page == "Müşteri Analizi":
                         pool = np.arange(len(y_proba))
                     if len(pool) > 0:
                         st.session_state["customer_idx"] = int(np.random.choice(pool))
+                        st.session_state["use_custom_customer"] = False
                         
                 st.button("Rastgele Seç", key="random_pick", on_click=pick_random)
 
+            with tab_live:
+                st.markdown("#### Yeni Müşteri İçin Canlı Tahmin")
+                with st.form("live_customer_form"):
+                    lc1, lc2, lc3 = st.columns(3)
+                    gender = lc1.selectbox("Gender", ["Female", "Male"])
+                    senior = lc2.selectbox("Senior Citizen", ["No", "Yes"])
+                    partner = lc3.selectbox("Partner", ["No", "Yes"])
+                    dependents = lc1.selectbox("Dependents", ["No", "Yes"])
+                    tenure = lc2.number_input("Tenure (ay)", 0, 72, 12)
+                    phone_service = lc3.selectbox("Phone Service", ["Yes", "No"])
+                    multiple_lines = lc1.selectbox(
+                        "Multiple Lines", ["No", "Yes", "No phone service"]
+                    )
+                    internet_service = lc2.selectbox(
+                        "Internet Service", ["DSL", "Fiber optic", "No"]
+                    )
+                    service_options = ["No", "Yes", "No internet service"]
+                    online_security = lc3.selectbox("Online Security", service_options)
+                    online_backup = lc1.selectbox("Online Backup", service_options)
+                    device_protection = lc2.selectbox("Device Protection", service_options)
+                    tech_support = lc3.selectbox("Tech Support", service_options)
+                    streaming_tv = lc1.selectbox("Streaming TV", service_options)
+                    streaming_movies = lc2.selectbox("Streaming Movies", service_options)
+                    contract = lc3.selectbox(
+                        "Contract", ["Month-to-month", "One year", "Two year"]
+                    )
+                    paperless = lc1.selectbox("Paperless Billing", ["Yes", "No"])
+                    payment_method = lc2.selectbox(
+                        "Payment Method",
+                        [
+                            "Electronic check", "Mailed check",
+                            "Bank transfer (automatic)", "Credit card (automatic)",
+                        ],
+                    )
+                    monthly_charges = lc3.number_input(
+                        "Monthly Charges ($)", 0.0, 150.0, 65.0, 1.0
+                    )
+                    total_charges = lc1.number_input(
+                        "Total Charges ($)", 0.0, 10000.0,
+                        float(65 * 12), 10.0,
+                    )
+                    live_submit = st.form_submit_button("Canlı Tahmin Yap")
+
+                if live_submit:
+                    live_customer = {
+                        "customerID": "LIVE-CUSTOMER",
+                        "gender": gender,
+                        "SeniorCitizen": int(senior == "Yes"),
+                        "Partner": partner,
+                        "Dependents": dependents,
+                        "tenure": tenure,
+                        "PhoneService": phone_service,
+                        "MultipleLines": multiple_lines,
+                        "InternetService": internet_service,
+                        "OnlineSecurity": online_security,
+                        "OnlineBackup": online_backup,
+                        "DeviceProtection": device_protection,
+                        "TechSupport": tech_support,
+                        "StreamingTV": streaming_tv,
+                        "StreamingMovies": streaming_movies,
+                        "Contract": contract,
+                        "PaperlessBilling": paperless,
+                        "PaymentMethod": payment_method,
+                        "MonthlyCharges": monthly_charges,
+                        "TotalCharges": total_charges,
+                    }
+                    try:
+                        live_result = build_single_prediction(
+                            model, live_customer, list(X_test.columns)
+                        )
+                        st.session_state["live_prediction_result"] = live_result
+                        st.session_state["current_customer_data"] = live_customer
+                        st.session_state["current_shap_factors"] = live_result["factors"]
+                        st.session_state["current_churn_prob"] = live_result["probability"]
+                        st.session_state["use_custom_customer"] = True
+                    except Exception as exc:
+                        st.error(f"Canlı tahmin oluşturulamadı: {exc}")
+
+                if "live_prediction_result" in st.session_state:
+                    live_result = st.session_state["live_prediction_result"]
+                    st.success(
+                        f"Churn olasılığı: %{live_result['probability']*100:.1f} · "
+                        f"{risk_badge(live_result['probability'])}"
+                    )
+                    live_factor_df = pd.DataFrame(live_result["factors"])
+                    st.dataframe(live_factor_df, width="stretch", hide_index=True)
+                    st.caption("Bu müşteri Mesaj Üretici sayfasında kullanıma hazır.")
+
+            if "searched_customer_result" in st.session_state:
+                searched_result = st.session_state["searched_customer_result"]
+                searched_id = searched_result["customer"].get("customerID", "?")
+                st.success(
+                    f"CustomerID {searched_id} · Canlı churn olasılığı: "
+                    f"%{searched_result['probability']*100:.1f} · "
+                    f"{risk_badge(searched_result['probability'])}"
+                )
+                st.dataframe(
+                    pd.DataFrame(searched_result["factors"]),
+                    width="stretch",
+                    hide_index=True,
+                )
+
             customer_idx = int(st.session_state.get("customer_idx", 0))
             customer_data = X_test.iloc[[customer_idx]]
+            customer_raw = raw_test.iloc[[customer_idx]]
             churn_prob = float(y_proba[customer_idx])
             true_label = int(y_test.values[customer_idx]) if y_test is not None else None
 
@@ -722,7 +1208,7 @@ elif page == "Müşteri Analizi":
                     paper_bgcolor="rgba(0,0,0,0)", font_color="#2C2416",
                     height=280, margin=dict(t=60, b=20, l=20, r=20),
                 )
-                st.plotly_chart(fig_gauge, use_container_width=True, theme=None)
+                st.plotly_chart(fig_gauge, width="stretch", theme=None)
 
             with col_info:
                 st.markdown(f"### {risk_badge(churn_prob)}")
@@ -731,9 +1217,13 @@ elif page == "Müşteri Analizi":
                     st.markdown(f"**Gerçek Değer:** {'Aktif Müşteri' if true_label == 0 else 'Ayrıldı (Churn)'}")
 
                 st.markdown("#### Müşteri Özellikleri")
-                for col in ["tenure", "MonthlyCharges", "TotalCharges"]:
-                    if col in customer_data.columns:
-                        st.markdown(f"- **{col}:** `{customer_data[col].values[0]:.2f}`")
+                if "customerID" in customer_raw.columns:
+                    st.markdown(f"- **CustomerID:** `{customer_raw['customerID'].iloc[0]}`")
+                for col in ["Contract", "tenure", "MonthlyCharges", "TotalCharges"]:
+                    if col in customer_raw.columns:
+                        value = customer_raw[col].iloc[0]
+                        rendered = f"{value:.2f}" if isinstance(value, (int, float, np.number)) else str(value)
+                        st.markdown(f"- **{col}:** `{rendered}`")
 
                 st.markdown("#### Top Risk Faktörleri (SHAP)")
                 with st.spinner("SHAP değerleri hesaplanıyor..."):
@@ -759,9 +1249,10 @@ elif page == "Müşteri Analizi":
                         unsafe_allow_html=True,
                     )
 
-                st.session_state["current_customer_data"] = customer_data.iloc[0].to_dict()
-                st.session_state["current_shap_factors"] = factors
-                st.session_state["current_churn_prob"] = churn_prob
+                if not st.session_state.get("use_custom_customer", False):
+                    st.session_state["current_customer_data"] = customer_raw.iloc[0].to_dict()
+                    st.session_state["current_shap_factors"] = factors
+                    st.session_state["current_churn_prob"] = churn_prob
 
             # ── SHAP Waterfall
             st.markdown("---")
@@ -773,7 +1264,7 @@ elif page == "Müşteri Analizi":
                 base_val = float(ev)
             st.plotly_chart(
                 plot_waterfall_plotly(shap_1d, list(customer_data.columns), base_val, top_n=10),
-                use_container_width=True,
+                width="stretch",
             )
 
             # ── Global Feature Importance + Beeswarm
@@ -799,12 +1290,12 @@ elif page == "Müşteri Analizi":
                     yaxis=dict(gridcolor="rgba(44,36,22,0.05)"),
                     height=420, margin=dict(l=10, r=10, t=50, b=30),
                 )
-                st.plotly_chart(fig_fi, use_container_width=True, theme=None)
+                st.plotly_chart(fig_fi, width="stretch", theme=None)
 
             with col_bee:
                 st.plotly_chart(
                     plot_beeswarm_plotly(shap_all, X_test, top_n=12),
-                    use_container_width=True,
+                    width="stretch",
                 )
 
             # ── Benzer Müşteriler
@@ -814,12 +1305,14 @@ elif page == "Müşteri Analizi":
             sim_rows = []
             for si in similar_idxs:
                 row = {"Index": si, "Churn Olasılığı": f"%{y_proba[si]*100:.1f}", "Risk": risk_badge(y_proba[si])}
-                if "tenure" in X_test.columns:
-                    row["Tenure"] = f"{X_test.iloc[si]['tenure']:.2f}"
-                if "MonthlyCharges" in X_test.columns:
-                    row["Aylık Ücret"] = f"{X_test.iloc[si]['MonthlyCharges']:.2f}"
+                if "customerID" in raw_test.columns:
+                    row["CustomerID"] = raw_test.iloc[si]["customerID"]
+                if "tenure" in raw_test.columns:
+                    row["Tenure"] = f"{raw_test.iloc[si]['tenure']:.0f}"
+                if "MonthlyCharges" in raw_test.columns:
+                    row["Aylık Ücret"] = f"${raw_test.iloc[si]['MonthlyCharges']:.2f}"
                 sim_rows.append(row)
-            st.dataframe(pd.DataFrame(sim_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(sim_rows), width="stretch", hide_index=True)
 
             sel_similar = st.selectbox(
                 "Bu müşteriyi analiz et",
@@ -848,6 +1341,7 @@ elif page == "Mesaj Üretici":
         factors = st.session_state["current_shap_factors"]
         customer_data = st.session_state["current_customer_data"]
         rc = risk_color(churn_prob)
+        recommended_offer = recommend_next_best_action(customer_data, churn_prob)
 
         # ── Özet Kartları
         col1, col2 = st.columns([1, 2])
@@ -883,6 +1377,16 @@ elif page == "Mesaj Üretici":
                 )
 
         st.markdown("---")
+        st.markdown("#### Next Best Action ve Teklif Ekonomisi")
+        offer_cols = st.columns(4)
+        offer_cols[0].metric("Önerilen Aksiyon", recommended_offer["name"])
+        offer_cols[1].metric("Tahmini Müşteri Değeri", f"${recommended_offer['customer_value']:.2f}")
+        offer_cols[2].metric("Teklif Maliyeti", f"${recommended_offer['offer_cost']:.2f}")
+        offer_cols[3].metric("Beklenen Net Değer", f"${recommended_offer['expected_net_value']:.2f}")
+        st.caption(
+            "Uplift ve net değer şu anda şeffaf senaryo varsayımlarına dayanır; "
+            "nedensel sonuç olarak yorumlanmamalıdır. Gerçek uplift A/B sonuçlarıyla ölçülür."
+        )
 
         # ── Mesaj Ayarları
         col_a, col_b, col_c = st.columns(3)
@@ -900,7 +1404,10 @@ elif page == "Mesaj Üretici":
         if st.button("Mesaj Oluştur", key="generate_msg"):
             prompt = build_retention_prompt(
                 customer_info={**customer_data, "name": customer_name},
-                shap_factors=factors, churn_probability=churn_prob, tone=tone,
+                shap_factors=factors,
+                churn_probability=churn_prob,
+                tone=tone,
+                recommended_offer=recommended_offer,
             )
             with st.spinner("Mesaj yazılıyor..."):
                 message = generate_retention_message(user_prompt=prompt, model=model_name)
@@ -926,7 +1433,7 @@ elif page == "Mesaj Üretici":
                 f'<div style="border-bottom:2px solid #2C2416;padding-bottom:12px;margin-bottom:16px;">'
                 f'<span style="font-size:0.82em;color:#666;">Kimden: Müşteri Deneyimi Ekibi</span><br>'
                 f'<span style="font-size:0.82em;color:#666;">Konu: Size Özel Teklifimiz</span></div>'
-                f'{msg.replace(chr(10), "<br>")}'
+                f'{html.escape(msg).replace(chr(10), "<br>")}'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -936,7 +1443,20 @@ elif page == "Mesaj Üretici":
                 "", value=msg, height=220, key="message_editor", label_visibility="collapsed"
             )
 
-            col_dl, col_clr, _ = st.columns([1, 1, 3])
+            safety = validate_retention_message(
+                edited_message, approved_offer=recommended_offer
+            )
+            if safety["safe_to_approve"]:
+                st.success("Mesaj otomatik doğruluk ve güvenlik kontrollerinden geçti.")
+            else:
+                st.error("Mesajda onayı engelleyen güvenlik sorunları var.")
+            for issue in safety["issues"]:
+                renderer = st.error if issue["severity"] == "error" else st.warning
+                renderer(issue["message"])
+
+            col_copy, col_dl, col_clr, _ = st.columns([1.2, 1, 1, 2])
+            with col_copy:
+                copy_to_clipboard_button(edited_message, key="copy_retention_message")
             with col_dl:
                 st.download_button(
                     "İndir (.txt)", edited_message,
@@ -947,8 +1467,307 @@ elif page == "Mesaj Üretici":
                     del st.session_state["generated_message"]
                     st.rerun()
 
+            customer_id = str(customer_data.get("customerID", "LIVE-CUSTOMER"))
+            if st.button(
+                "Mesaj ve Teklifi Onaya Gönder",
+                key="submit_for_approval",
+                disabled=not safety["safe_to_approve"],
+            ):
+                record_id = OperationsStore().create_message(
+                    customer_id,
+                    edited_message,
+                    recommended_offer,
+                    safety,
+                )
+                st.success(f"Onay kaydı oluşturuldu: #{record_id}")
+
             st.markdown(
                 '<div class="info-box"><b>İpucu:</b> E-posta önizlemesini tarayıcıdan kopyalayıp '
                 'CRM sisteminize yapıştırabilirsiniz.</div>',
                 unsafe_allow_html=True,
             )
+
+# ─── SAYFA 4: RETENTION OPERASYONLARI ───────────────────────────────────────
+
+elif page == "Retention Operasyonları":
+    st.markdown("# Retention Operasyonları")
+    st.markdown(
+        "*Model güveni, deney ölçümü, insan onayı, denetim geçmişi ve CRM aktarımı*"
+    )
+    st.markdown("---")
+
+    tab_trust, tab_experiment, tab_approval, tab_crm = st.tabs([
+        "Model Güveni", "A/B Test ve Uplift", "Onay ve Denetim", "CRM Aktarımı",
+    ])
+    store = OperationsStore()
+
+    with tab_trust:
+        if not artifacts_ready:
+            st.warning("P2 model artefaktları için modeli sol menüden yeniden hazırlayın.")
+        else:
+            model = load_trained_model()
+            X_test, y_test, raw_test = load_processed_data()
+            raw_probabilities = model.predict_proba(X_test)[:, 1]
+            calibrator = load_probability_calibrator()
+            calibrated_probabilities = calibrator.predict(raw_probabilities)
+
+            st.markdown("#### Olasılık Kalibrasyonu")
+            report_path = MODELS_DIR / "calibration_report.json"
+            with report_path.open(encoding="utf-8") as handle:
+                cal_report = json.load(handle)
+            cal_cols = st.columns(3)
+            cal_cols[0].metric(
+                "Brier Score",
+                f"{cal_report['calibrated']['brier_score']:.4f}",
+                delta=(
+                    f"{cal_report['calibrated']['brier_score'] - cal_report['raw']['brier_score']:+.4f}"
+                ),
+                delta_color="inverse",
+            )
+            cal_cols[1].metric(
+                "Log Loss", f"{cal_report['calibrated']['log_loss']:.4f}"
+            )
+            cal_cols[2].metric(
+                "Calibration Error",
+                f"{cal_report['calibrated']['expected_calibration_error']:.4f}",
+            )
+
+            calibration_df = pd.DataFrame({
+                "Tahmin": calibrated_probabilities,
+                "Gerçek": np.asarray(y_test),
+            })
+            calibration_df["Aralık"] = pd.cut(
+                calibration_df["Tahmin"], bins=np.linspace(0, 1, 11), include_lowest=True
+            )
+            reliability = (
+                calibration_df.groupby("Aralık", observed=True)
+                .agg(Tahmin=("Tahmin", "mean"), Gerçekleşen=("Gerçek", "mean"), N=("Gerçek", "size"))
+                .reset_index()
+            )
+            reliability["Aralık"] = reliability["Aralık"].astype(str)
+            fig_cal = px.line(
+                reliability, x="Tahmin", y="Gerçekleşen", markers=True,
+                hover_data=["Aralık", "N"], title="Güvenilirlik Eğrisi",
+            )
+            fig_cal.add_trace(go.Scatter(
+                x=[0, 1], y=[0, 1], mode="lines", name="İdeal",
+                line={"dash": "dash", "color": "#8C7560"},
+            ))
+            st.plotly_chart(fig_cal, width="stretch")
+
+            st.markdown("---")
+            left_monitor, right_monitor = st.columns(2)
+            with left_monitor:
+                st.markdown("#### Veri Drift")
+                drift = calculate_drift(load_drift_reference(), raw_test)
+                st.dataframe(
+                    drift.style.format({"drift_score": "{:.4f}"}),
+                    width="stretch",
+                    hide_index=True,
+                )
+                if not drift.empty and (drift["status"] == "critical").any():
+                    st.error("Kritik drift görüldü; yeniden eğitim değerlendirilmelidir.")
+                else:
+                    st.success("Kritik veri drift sinyali yok.")
+
+            with right_monitor:
+                st.markdown("#### Fairness / Segment Hata Analizi")
+                fairness = group_error_analysis(
+                    y_test,
+                    calibrated_probabilities,
+                    raw_test,
+                    threshold=st.session_state.get("risk_threshold", 0.7),
+                )
+                st.dataframe(
+                    fairness.style.format({
+                        "churn_rate": "{:.3f}",
+                        "positive_prediction_rate": "{:.3f}",
+                        "precision": "{:.3f}",
+                        "recall": "{:.3f}",
+                        "f1": "{:.3f}",
+                        "roc_auc": "{:.3f}",
+                    }),
+                    width="stretch",
+                    hide_index=True,
+                )
+                st.caption(
+                    "Bu tablo gözlenen grup hatalarını gösterir; hukuki bir fairness sertifikası değildir."
+                )
+
+    with tab_experiment:
+        st.markdown("#### Retention Kampanyası A/B Ataması")
+        campaign_id = st.text_input(
+            "Kampanya ID", value="retention-pilot-001", key="campaign_id"
+        )
+        experiment_customer_id = st.text_input(
+            "CustomerID", value="", key="experiment_customer_id"
+        )
+        if st.button("Varyant Ata", key="assign_variant"):
+            if campaign_id.strip() and experiment_customer_id.strip():
+                variant = store.assign_variant(
+                    campaign_id.strip(), experiment_customer_id.strip()
+                )
+                st.session_state["assigned_variant"] = variant
+                st.success(f"Deterministik atama: {variant}")
+            else:
+                st.error("Kampanya ID ve CustomerID gereklidir.")
+
+        if "assigned_variant" in st.session_state:
+            retained = st.radio(
+                "Gözlenen sonuç",
+                ["Müşteri kaldı", "Müşteri ayrıldı"],
+                horizontal=True,
+                key="experiment_outcome",
+            )
+            if st.button("Sonucu Kaydet", key="save_experiment_outcome"):
+                try:
+                    store.record_outcome(
+                        campaign_id.strip(),
+                        experiment_customer_id.strip(),
+                        retained == "Müşteri kaldı",
+                    )
+                    st.success("Kampanya sonucu kaydedildi.")
+                except ValueError as exc:
+                    st.error(str(exc))
+
+        if campaign_id.strip():
+            experiment = store.experiment_summary(campaign_id.strip())
+            exp_rows = pd.DataFrame([
+                {"Varyant": name, **values}
+                for name, values in (
+                    ("control", experiment["control"]),
+                    ("treatment", experiment["treatment"]),
+                )
+            ])
+            st.dataframe(exp_rows, width="stretch", hide_index=True)
+            measured_uplift = experiment["measured_uplift"]
+            if measured_uplift is None:
+                st.info("Ölçülen uplift için iki varyantta da sonuç verisi gerekir.")
+            else:
+                st.metric("Ölçülen Retention Uplift", f"{measured_uplift:+.1%}")
+                if min(
+                    experiment["control"]["measured"],
+                    experiment["treatment"]["measured"],
+                ) < 30:
+                    st.warning("Örneklem küçük; bu sonucu karar vermek için kullanmayın.")
+
+        st.markdown("---")
+        st.markdown("#### Tek Müşteri Next Best Action Senaryosu")
+        if artifacts_ready:
+            model = load_trained_model()
+            X_test, _, raw_test = load_processed_data()
+            options = raw_test["customerID"].astype(str).tolist()
+            selected_customer = st.selectbox(
+                "Müşteri", options, key="nba_customer"
+            )
+            selected_index = options.index(selected_customer)
+            raw_probability = model.predict_proba(X_test.iloc[[selected_index]])[:, 1]
+            probability = float(load_probability_calibrator().predict(raw_probability)[0])
+            action = recommend_next_best_action(
+                raw_test.iloc[selected_index].to_dict(), probability
+            )
+            action_table = pd.DataFrame(action["alternatives"])
+            st.success(
+                f"Öneri: {action['name']} · Beklenen net değer: "
+                f"${action['expected_net_value']:.2f}"
+            )
+            st.dataframe(
+                action_table[[
+                    "name", "offer_cost", "scenario_uplift",
+                    "expected_benefit", "expected_net_value",
+                ]].style.format({
+                    "offer_cost": "${:.2f}",
+                    "scenario_uplift": "{:.1%}",
+                    "expected_benefit": "${:.2f}",
+                    "expected_net_value": "${:.2f}",
+                }),
+                width="stretch",
+                hide_index=True,
+            )
+            st.caption(
+                "Senaryo uplift değerleri varsayımdır; A/B test sonuçları geldikçe "
+                "ölçülen değerlerle değiştirilmelidir."
+            )
+
+    with tab_approval:
+        st.markdown("#### Mesaj ve Teklif Onay Kuyruğu")
+        records = store.list_messages()
+        pending = [record for record in records if record["status"] == "draft"]
+        if not pending:
+            st.info("Onay bekleyen kayıt yok.")
+        else:
+            pending_map = {
+                f"#{record['id']} · {record['customer_id']}": record
+                for record in pending
+            }
+            selected_label = st.selectbox(
+                "Onay kaydı", list(pending_map), key="approval_record"
+            )
+            selected_record = pending_map[selected_label]
+            st.text_area(
+                "Mesaj", selected_record["message"], height=200,
+                disabled=True, key="approval_message",
+            )
+            st.json(selected_record["offer"], expanded=False)
+            reviewer = st.text_input("İnceleyen", key="reviewer_name")
+            approve_col, reject_col = st.columns(2)
+            if approve_col.button("Onayla", key="approve_message"):
+                try:
+                    store.review_message(
+                        selected_record["id"], "approved", reviewer
+                    )
+                    st.success("Mesaj ve teklif onaylandı.")
+                    st.rerun()
+                except ValueError as exc:
+                    st.error(str(exc))
+            if reject_col.button("Reddet", key="reject_message"):
+                try:
+                    store.review_message(
+                        selected_record["id"], "rejected", reviewer
+                    )
+                    st.success("Mesaj ve teklif reddedildi.")
+                    st.rerun()
+                except ValueError as exc:
+                    st.error(str(exc))
+
+        st.markdown("#### Denetim Geçmişi")
+        events = store.list_audit_events()
+        if events:
+            audit_df = pd.DataFrame(events).drop(columns=["details_json"], errors="ignore")
+            st.dataframe(audit_df, width="stretch", hide_index=True)
+        else:
+            st.caption("Henüz denetim olayı yok.")
+
+    with tab_crm:
+        st.markdown("#### Onaylı CRM Aktarımı")
+        approved_records = store.list_messages(status="approved")
+        export_df = approved_records_dataframe(approved_records)
+        if export_df.empty:
+            st.info("CRM'e aktarılabilecek onaylı kayıt yok.")
+        else:
+            st.dataframe(export_df, width="stretch", hide_index=True)
+            st.download_button(
+                "Onaylı Kayıtları CSV İndir",
+                export_df.to_csv(index=False).encode("utf-8"),
+                "crm_retention_export.csv",
+                "text/csv",
+                key="crm_csv",
+            )
+            webhook_url = st.text_input(
+                "CRM HTTPS Webhook", type="password", key="crm_webhook"
+            )
+            record_options = {
+                f"#{record['id']} · {record['customer_id']}": record
+                for record in approved_records
+            }
+            crm_label = st.selectbox(
+                "Gönderilecek kayıt", list(record_options), key="crm_record"
+            )
+            if st.button("CRM'e Gönder", key="send_crm"):
+                try:
+                    status = send_to_crm_webhook(
+                        record_options[crm_label], webhook_url
+                    )
+                    st.success(f"CRM webhook yanıtı: HTTP {status}")
+                except Exception as exc:
+                    st.error(f"CRM aktarımı başarısız: {exc}")

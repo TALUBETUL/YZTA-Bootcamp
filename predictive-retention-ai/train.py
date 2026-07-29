@@ -15,16 +15,22 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from src.data.loader import load_raw_data, get_data_info
-from src.data.preprocessor import preprocess_pipeline
+from src.data.preprocessor import preprocess_pipeline, apply_smote
 from src.models.xgboost_model import (
-    train_xgboost, evaluate_model, optimize_hyperparams, save_model
+    train_xgboost, evaluate_model, optimize_hyperparams, save_model,
+    save_evaluation_report,
 )
+from src.models.model_comparison import compare_models, save_model_comparison
+from src.models.calibration import (
+    calibration_report, fit_oof_calibrator, save_calibration,
+)
+from src.monitoring.model_monitor import build_reference_profile, save_reference_profile
 from src.xai.shap_explainer import (
     get_shap_explainer, compute_shap_values, get_global_feature_importance, plot_summary
 )
 
 
-def main(optimize: bool = False):
+def main(optimize: bool = False, compare: bool = False):
     print("=" * 60)
     print("🧠 Predictive Retention AI — Model Eğitimi")
     print("=" * 60)
@@ -38,7 +44,7 @@ def main(optimize: bool = False):
 
     # 2. Ön işleme
     print("\n⚙️ Veri ön işleniyor...")
-    results = preprocess_pipeline(df, use_smote=True)
+    results = preprocess_pipeline(df, use_smote=not optimize)
     X_train = results["X_train"]
     X_test = results["X_test"]
     y_train = results["y_train"]
@@ -52,12 +58,9 @@ def main(optimize: bool = False):
     print("\n🤖 XGBoost modeli eğitiliyor...")
     if optimize:
         print("   🔍 Hiperparametre optimizasyonu başlatılıyor...")
-        from sklearn.model_selection import train_test_split
-        X_tr, X_val, y_tr, y_val = train_test_split(
-            X_train, y_train, test_size=0.2, random_state=42
-        )
-        best_params = optimize_hyperparams(X_tr, y_tr, X_val, y_val, n_trials=50)
-        model = train_xgboost(X_train, y_train, params=best_params)
+        best_params = optimize_hyperparams(X_train, y_train, n_trials=50)
+        X_train_fit, y_train_fit = apply_smote(X_train, y_train)
+        model = train_xgboost(X_train_fit, y_train_fit, params=best_params)
     else:
         model = train_xgboost(X_train, y_train)
 
@@ -66,7 +69,38 @@ def main(optimize: bool = False):
     metrics = evaluate_model(model, X_test, y_test)
 
     # 5. Modeli kaydet
-    save_model(model)
+    save_model(model, metrics=metrics)
+    save_evaluation_report(metrics, model_params=model.get_params())
+
+    print("\n🎯 Churn olasılıkları kalibre ediliyor...")
+    calibrator, _ = fit_oof_calibrator(
+        model,
+        results["X_train_unbalanced"],
+        results["y_train_unbalanced"],
+    )
+    calibrated_test = calibrator.predict(metrics["y_proba"])
+    cal_report = calibration_report(
+        results["y_test"], metrics["y_proba"], calibrated_test
+    )
+    save_calibration(calibrator, cal_report)
+    save_reference_profile(
+        build_reference_profile(results["raw_train"]),
+        ROOT / "models" / "drift_reference.json",
+    )
+    print(
+        "✅ Kalibrasyon tamamlandı. "
+        f"Brier: {cal_report['raw']['brier_score']:.4f} → "
+        f"{cal_report['calibrated']['brier_score']:.4f}"
+    )
+
+    if compare:
+        print("\n⚖️ Baseline modeller karşılaştırılıyor...")
+        comparison = compare_models(
+            results["X_train_unbalanced"],
+            results["y_train_unbalanced"],
+        )
+        save_model_comparison(comparison)
+        print(comparison[["model", "f1", "recall", "roc_auc"]].to_string(index=False))
 
     # 6. SHAP analizi
     print("\n🔍 SHAP analizi yapılıyor...")
@@ -98,5 +132,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Predictive Retention AI — Model Eğitimi")
     parser.add_argument("--optimize", action="store_true",
                         help="Optuna ile hiperparametre optimizasyonu yap")
+    parser.add_argument("--compare", action="store_true",
+                        help="Baseline modelleri leakage-safe CV ile karşılaştır")
     args = parser.parse_args()
-    main(optimize=args.optimize)
+    main(optimize=args.optimize, compare=args.compare)
