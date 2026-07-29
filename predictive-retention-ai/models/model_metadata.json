@@ -1,0 +1,42 @@
+{
+  "created_at": "2026-07-26T18:39:23.619787+00:00",
+  "model_type": "XGBClassifier",
+  "feature_names": [
+    "gender",
+    "SeniorCitizen",
+    "Partner",
+    "Dependents",
+    "tenure",
+    "PhoneService",
+    "MultipleLines",
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies",
+    "PaperlessBilling",
+    "MonthlyCharges",
+    "TotalCharges",
+    "InternetService_DSL",
+    "InternetService_Fiber optic",
+    "InternetService_No",
+    "Contract_Month-to-month",
+    "Contract_One year",
+    "Contract_Two year",
+    "PaymentMethod_Bank transfer (automatic)",
+    "PaymentMethod_Credit card (automatic)",
+    "PaymentMethod_Electronic check",
+    "PaymentMethod_Mailed check"
+  ],
+  "n_features": 26,
+  "versions": {
+    "xgboost": "3.3.0",
+    "scikit-learn": "1.9.0",
+    "pandas": "3.0.3"
+  },
+  "metrics": {
+    "f1_score": 0.6082725060827251,
+    "roc_auc": 0.8277080265571315
+  }
+}

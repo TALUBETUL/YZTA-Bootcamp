@@ -3,13 +3,15 @@ Veri Ön İşleme Modülü
 Telco Churn veri setini modele hazır hale getirir.
 """
 
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.model_selection import train_test_split
-from imblearn.over_sampling import SMOTE
-import joblib
+import json
 from pathlib import Path
+
+import joblib
+import numpy as np
+import pandas as pd
+from imblearn.over_sampling import SMOTE
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
 
 PROCESSED_DIR = Path(__file__).resolve().parents[2] / "data" / "processed"
@@ -59,12 +61,10 @@ def encode_features(df: pd.DataFrame) -> pd.DataFrame:
     # Churn → 0/1
     df[TARGET_COL] = (df[TARGET_COL] == "Yes").astype(int)
 
-    # Binary sütunlar
+    # Binary sütunlar (gender ayrı ele alınır)
     for col in BINARY_COLS:
-        if col in df.columns:
+        if col in df.columns and col != "gender":
             df[col] = (df[col] == "Yes").astype(int)
-            if col == "gender":
-                df[col] = (df[col + "_raw"] if col + "_raw" in df.columns else df["gender"] == "Male").astype(int)
 
     # "No internet service" / "No phone service" → 0, "Yes" → 1, "No" → 0
     for col in ORDINAL_BINARY_COLS:
@@ -141,6 +141,7 @@ def preprocess_pipeline(df: pd.DataFrame,
     """
     # 1. Temizlik
     df = clean_data(df)
+    raw_df = df.copy()
 
     # 2. customerID sütununu kaydet ve kaldır
     customer_ids = df[ID_COL].values if ID_COL in df.columns else None
@@ -160,20 +161,23 @@ def preprocess_pipeline(df: pd.DataFrame,
         X, y, test_size=test_size, random_state=random_state, stratify=y
     )
 
-    # 5b. Test seti customerID'lerini kaydet (Streamlit arama için)
-    if customer_ids is not None:
-        # X_test.index, orijinal DataFrame'deki satır numaralarını içerir
-        test_ids_arr = customer_ids[X_test.index.to_numpy()]
+    # 5b. Ham test satırlarını aynı sırada sakla. UI ve filtreler model için
+    # ölçeklenmiş değerleri değil, bu gerçek müşteri değerlerini kullanır.
+    raw_train = raw_df.loc[X_train.index].reset_index(drop=True)
+    raw_test = raw_df.loc[X_test.index].reset_index(drop=True)
+    test_ids_df = None
+    if ID_COL in raw_test.columns:
         test_ids_df = pd.DataFrame({
-            "customerID": test_ids_arr,
-            "test_row": range(len(X_test)),   # X_test içindeki pozisyon
+            ID_COL: raw_test[ID_COL],
+            "test_row": range(len(raw_test)),
         })
-        PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-        test_ids_df.to_csv(PROCESSED_DIR / "test_ids.csv", index=False)
-        print(f"✅ Test set customerID'leri kaydedildi: {len(test_ids_df)} müşteri")
 
     # 6. Ölçeklendirme
     X_train, X_test = scale_features(X_train, X_test)
+
+    # Model karşılaştırması ve leakage-safe CV için dengelenmemiş kopyayı koru.
+    X_train_unbalanced = X_train.copy()
+    y_train_unbalanced = y_train.copy()
 
     # 7. SMOTE
     if use_smote:
@@ -182,9 +186,24 @@ def preprocess_pipeline(df: pd.DataFrame,
     # 8. İşlenmiş verileri kaydet
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
     X_train.to_csv(PROCESSED_DIR / "X_train.csv", index=False)
+    X_train_unbalanced.to_csv(PROCESSED_DIR / "X_train_base.csv", index=False)
     X_test.to_csv(PROCESSED_DIR / "X_test.csv", index=False)
     y_train.to_csv(PROCESSED_DIR / "y_train.csv", index=False)
+    y_train_unbalanced.to_csv(PROCESSED_DIR / "y_train_base.csv", index=False)
     y_test.to_csv(PROCESSED_DIR / "y_test.csv", index=False)
+    raw_train.to_csv(PROCESSED_DIR / "raw_train.csv", index=False)
+    raw_test.to_csv(PROCESSED_DIR / "raw_test.csv", index=False)
+    if test_ids_df is not None:
+        test_ids_df.to_csv(PROCESSED_DIR / "test_ids.csv", index=False)
+    metadata = {
+        "random_state": random_state,
+        "test_size": test_size,
+        "use_smote": use_smote,
+        "feature_names": feature_cols,
+        "test_rows": len(X_test),
+    }
+    with (PROCESSED_DIR / "preprocessing_metadata.json").open("w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, ensure_ascii=False, indent=2)
     print("✅ İşlenmiş veriler kaydedildi: data/processed/")
 
     return {
@@ -194,10 +213,33 @@ def preprocess_pipeline(df: pd.DataFrame,
         "y_test": y_test,
         "feature_names": feature_cols,
         "customer_ids": customer_ids,
+        "raw_test": raw_test,
+        "raw_train": raw_train,
+        "X_train_unbalanced": X_train_unbalanced,
+        "y_train_unbalanced": y_train_unbalanced,
     }
 
 
-def preprocess_single_customer(customer_dict: dict, scaler_path: str | Path = None) -> pd.DataFrame:
+def _load_training_feature_names() -> list[str]:
+    metadata_path = PROCESSED_DIR / "preprocessing_metadata.json"
+    if metadata_path.exists():
+        with metadata_path.open(encoding="utf-8") as handle:
+            return list(json.load(handle)["feature_names"])
+
+    train_path = PROCESSED_DIR / "X_train.csv"
+    if train_path.exists():
+        return pd.read_csv(train_path, nrows=0).columns.tolist()
+
+    raise FileNotFoundError(
+        "Eğitim özellikleri bulunamadı. Önce modeli ve veriyi hazırlayın."
+    )
+
+
+def preprocess_single_customer(
+    customer_dict: dict,
+    scaler_path: str | Path | None = None,
+    feature_names: list[str] | None = None,
+) -> pd.DataFrame:
     """
     Tek bir müşteri kaydını tahmin için hazırlar.
     Streamlit arayüzünde canlı tahmin için kullanılır.
@@ -222,6 +264,8 @@ def preprocess_single_customer(customer_dict: dict, scaler_path: str | Path = No
         df = df.drop(columns=[TARGET_COL])
 
     df = encode_features_single(df)
+    feature_names = feature_names or _load_training_feature_names()
+    df = df.reindex(columns=feature_names, fill_value=0)
 
     # Ölçeklendirme
     scaler = joblib.load(scaler_path)

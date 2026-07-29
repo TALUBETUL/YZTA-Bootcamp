@@ -158,14 +158,26 @@ def plot_waterfall_plotly(
     sv_sorted = sv_top[order]
     fn_sorted = [fn_top[i] for i in order]
 
-    # Gösterilmeyen özelliklerin toplam etkisi
+    # TreeExplainer'ın varsayılan XGBoost çıktısı raw margin (log-odds)'tur.
+    # Waterfall katkıları bu ölçekte kalır; son değer sigmoid ile olasılığa çevrilir.
     others_val = float(shap_values_single.sum()) - float(sv_top.sum())
-    final_pred = base_value + float(shap_values_single.sum())
+    final_margin = base_value + float(shap_values_single.sum())
+    if final_margin >= 0:
+        final_probability = 1.0 / (1.0 + np.exp(-final_margin))
+    else:
+        exp_margin = np.exp(final_margin)
+        final_probability = exp_margin / (1.0 + exp_margin)
 
-    all_names = fn_sorted + ["Diğer Özellikler", f"Tahmin: %{final_pred*100:.1f}"]
+    all_names = fn_sorted + [
+        "Diğer Özellikler",
+        f"Churn olasılığı: %{final_probability*100:.1f}",
+    ]
     all_vals = list(sv_sorted) + [others_val, None]
     all_measures = ["relative"] * len(sv_sorted) + ["relative", "total"]
-    all_text = [f"{v:+.3f}" for v in sv_sorted] + [f"{others_val:+.3f}", f"%{final_pred*100:.1f}"]
+    all_text = [f"{v:+.3f}" for v in sv_sorted] + [
+        f"{others_val:+.3f}",
+        f"%{final_probability*100:.1f}",
+    ]
 
     fig = go.Figure(go.Waterfall(
         orientation="h",
@@ -184,7 +196,7 @@ def plot_waterfall_plotly(
     fig.add_vline(
         x=base_value, line_dash="dot",
         line_color="rgba(255,255,255,0.35)",
-        annotation_text=f"Base: {base_value:.3f}",
+        annotation_text=f"Base log-odds: {base_value:.3f}",
         annotation_font_color="#8C7560",
         annotation_font_size=11,
     )
@@ -194,7 +206,7 @@ def plot_waterfall_plotly(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(255,253,248,0.5)",
         font_color="#2C2416",
-        xaxis=dict(title="SHAP Değeri", gridcolor="rgba(44,36,22,0.1)"),
+        xaxis=dict(title="SHAP Değeri (log-odds katkısı)", gridcolor="rgba(44,36,22,0.1)"),
         yaxis=dict(gridcolor="rgba(44,36,22,0.05)"),
         height=460,
         margin=dict(l=20, r=60, t=60, b=40),

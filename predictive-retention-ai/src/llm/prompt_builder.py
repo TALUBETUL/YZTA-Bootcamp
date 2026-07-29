@@ -21,7 +21,8 @@ Yazım kuralları:
 def build_retention_prompt(customer_info: dict,
                             shap_factors: list[dict],
                             churn_probability: float,
-                            tone: str = "samimi") -> str:
+                            tone: str = "samimi",
+                            recommended_offer: dict | None = None) -> str:
     """
     Müşteri bilgileri ve SHAP faktörlerinden LLM prompt'u oluşturur.
 
@@ -54,6 +55,14 @@ def build_retention_prompt(customer_info: dict,
     }
     tone_note = tone_instructions.get(tone, tone_instructions["samimi"])
 
+    offer_text = (
+        f"- Onaylı teklif: {recommended_offer['name']}\n"
+        f"- Teklif maliyeti: {recommended_offer['offer_cost']:.2f} TL\n"
+        "Yalnızca bu teklifi kullan; oran, süre veya başka bir avantaj uydurma."
+        if recommended_offer else
+        "Henüz onaylı teklif yok; belirli oran, fiyat veya süre uydurma."
+    )
+
     prompt = f"""Aşağıdaki müşteri için kişiselleştirilmiş bir geri kazanım e-postası yaz.
 
 MÜŞTERİ BİLGİLERİ:
@@ -65,6 +74,9 @@ MÜŞTERİ BİLGİLERİ:
 
 CHURN RİSK FAKTÖRLERİ (Yapay Zeka Analizi):
 {factors_text}
+
+TEKLİF KISITI:
+{offer_text}
 
 TON: {tone_note}
 

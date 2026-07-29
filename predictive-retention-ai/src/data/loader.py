@@ -3,14 +3,38 @@ Veri Yükleyici Modülü
 IBM Telco Customer Churn veri setini yükler.
 """
 
-import pandas as pd
 from pathlib import Path
 
+import pandas as pd
 
-RAW_DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "raw" / "WA_Fn-UseC_-Telco-Customer-Churn.xls"
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = PROJECT_ROOT.parent
+DATASET_FILENAME = "WA_Fn-UseC_-Telco-Customer-Churn.xls"
+RAW_DATA_CANDIDATES = (
+    PROJECT_ROOT / "data" / "raw" / DATASET_FILENAME,
+    REPOSITORY_ROOT / DATASET_FILENAME,
+)
+RAW_DATA_PATH = RAW_DATA_CANDIDATES[0]
 
 
-def load_raw_data(filepath: str | Path = RAW_DATA_PATH) -> pd.DataFrame:
+def resolve_raw_data_path(filepath: str | Path | None = None) -> Path:
+    """Return an existing dataset path, supporting both documented locations."""
+    if filepath is not None:
+        path = Path(filepath)
+        if path.exists():
+            return path
+        raise FileNotFoundError(f"Veri dosyası bulunamadı: {path}")
+
+    for candidate in RAW_DATA_CANDIDATES:
+        if candidate.exists():
+            return candidate
+
+    checked = "\n- ".join(str(path) for path in RAW_DATA_CANDIDATES)
+    raise FileNotFoundError(f"Veri dosyası bulunamadı. Kontrol edilen yollar:\n- {checked}")
+
+
+def load_raw_data(filepath: str | Path | None = None) -> pd.DataFrame:
     """
     Ham veri setini yükler.
 
@@ -20,9 +44,7 @@ def load_raw_data(filepath: str | Path = RAW_DATA_PATH) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Ham veri çerçevesi
     """
-    filepath = Path(filepath)
-    if not filepath.exists():
-        raise FileNotFoundError(f"Veri dosyası bulunamadı: {filepath}")
+    filepath = resolve_raw_data_path(filepath)
 
     # Gerçek format tespiti (uzantı yanıltıcı olabilir)
     try:
