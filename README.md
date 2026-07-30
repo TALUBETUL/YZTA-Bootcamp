@@ -317,13 +317,13 @@ Sprint değerlendirmesi yapıldı. <br>
 
 <img width="1469" height="793" alt="Screenshot 2026-07-30 at 13 07 00" src="https://github.com/user-attachments/assets/087f635f-7cd6-48c3-9273-51df4d09a08d" /> <br>
 
+- Proje istenilen deadline süresine yetiştirilmiş, planlanan tüm aşamalar Done sütununa aktarılmış ve tamamlanmıştır.
+
 ## Ürün Durumu
 
 <img width="1324" height="596" alt="Screenshot 2026-07-30 at 13 07 58" src="https://github.com/user-attachments/assets/d09f90a1-0c1d-482d-a12d-208a66f94c4e" /> <br>
 
 Ana Dashboard ekranı geliştirilerek risk dağılımları, müşteri segmentleri ve model performansına ilişkin özet bilgiler tek panel üzerinden görüntülenebilir hale getirilmiştir.
-
-### Gerçekleştirilen Özellikler
 
 ## Müşteri Analizi
 
