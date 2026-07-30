@@ -1,4 +1,4 @@
-# YZTA-Bootcamp
+<img width="1470" height="801" alt="Screenshot 2026-07-30 at 12 49 25" src="https://github.com/user-attachments/assets/e72eceec-f7f9-41d5-b94e-934f0b548738" /># YZTA-Bootcamp
 YZTA Bootcamp project
 
 ## Team Name
@@ -249,12 +249,10 @@ Sprint hedeflerinin büyük bölümü başarıyla tamamlanmıştır. Model geli�
 
 ## Sprint Retrospective
 
-  -  Güçlü Yönler <br>
 - Model geliştirme süreci planlandığı şekilde ilerledi. <br>
 - SHAP entegrasyonu başarıyla tamamlandı. <br>
 - Streamlit uygulamasının temel yapısı oluşturuldu. <br>
 - Takım içi iletişim düzenli şekilde sürdürüldü. <br>
-  -  Karşılaşılan Zorluklar <br>
 - Dashboard tasarımı beklenenden daha fazla geliştirme süresi gerektirdi. <br>
 - Prompt Engineering sürecinde farklı senaryolar için ek denemeler yapıldı. <br>
 
@@ -263,6 +261,100 @@ Sprint hedeflerinin büyük bölümü başarıyla tamamlanmıştır. Model geli�
 
 <details>
 <summary><h3>Sprint3</h3></summary>
+
+## Sprint Goal ve Story Seçimleri
+
+Sprint 3'ün amacı uygulamanın son kullanıcıya sunulabilecek seviyeye getirilmesi,
+karar destek mekanizmalarının geliştirilmesi ve ürünün tamamlanmasıdır.
+
+- Dashboard geliştirmelerinin tamamlanması <br>
+- Müşteri Analizi ekranının geliştirilmesi <br>
+- SHAP tabanlı risk faktörlerinin detaylandırılması <br>
+- Risk skoru göstergelerinin iyileştirilmesi <br>
+- Kişiselleştirilmiş geri kazanım mesajı ekranının tamamlanması <br>
+- Next Best Action öneri sisteminin eklenmesi <br>
+- Teklif ekonomisi hesaplamalarının eklenmesi <br>
+- Uplift modelleme altyapısının oluşturulması <br>
+- Retention operasyonları ekranının geliştirilmesi <br>
+- Dashboard performans iyileştirmeleri <br>
+- Son testlerin yapılması <br>
+- Dokümantasyon ve proje düzenlemelerinin tamamlanması <br>
+
+## Daily Scrum
+
+## 1. Gün
+
+Dashboard üzerinde son düzenlemeler yapıldı. <br>
+Risk dağılımı grafikleri güncellendi. <br>
+Müşteri segmentasyonu iyileştirildi. <br>
+
+## 2. Gün
+
+Müşteri Analizi ekranı geliştirildi. <br>
+SHAP açıklamaları detaylandırıldı. <br>
+Risk göstergeleri düzenlendi. <br>
+
+## 3. Gün
+
+Kişiselleştirilmiş geri kazanım mesajı modülü geliştirildi. <br>
+Groq LLM çıktıları iyileştirildi. <br>
+Mesaj üretim ekranı test edildi. <br>
+
+## 4. Gün
+
+Next Best Action önerileri sisteme eklendi. <br>
+Teklif maliyeti ve beklenen müşteri değeri hesaplamaları tamamlandı. <br>
+Kullanıcı deneyimi iyileştirmeleri yapıldı. <br>
+
+## 5. Gün
+
+Genel sistem testleri gerçekleştirildi. <br>
+Hatalar giderildi. <br>
+README ve proje dokümantasyonu güncellendi. <br>
+Sprint değerlendirmesi yapıldı. <br>
+
+## Sprint Board Screenshot
+
+<img width="1469" height="793" alt="Screenshot 2026-07-30 at 13 07 00" src="https://github.com/user-attachments/assets/087f635f-7cd6-48c3-9273-51df4d09a08d" /> <br>
+
+## Ürün Durumu
+
+<img width="1324" height="596" alt="Screenshot 2026-07-30 at 13 07 58" src="https://github.com/user-attachments/assets/d09f90a1-0c1d-482d-a12d-208a66f94c4e" /> <br>
+
+Ana Dashboard ekranı geliştirilerek risk dağılımları, müşteri segmentleri ve model performansına ilişkin özet bilgiler tek panel üzerinden görüntülenebilir hale getirilmiştir.
+
+### Gerçekleştirilen Özellikler
+
+## Müşteri Analizi
+
+<img width="1260" height="681" alt="Screenshot 2026-07-30 at 13 09 48" src="https://github.com/user-attachments/assets/d2d149b7-2875-4e83-a193-4ec2c05b50f7" /> <br>
+
+- Müşteri Analizi ekranında seçilen müşterinin churn riski, temel bilgileri ve SHAP ile hesaplanan risk faktörleri detaylı olarak sunulmaktadır. Böylece model tahminlerinin hangi değişkenlerden etkilendiği kullanıcı tarafından yorumlanabilmektedir. <br>
+
+## Kişiselleştirilmiş Geri Kazanım Mesajı
+
+<img width="1270" height="683" alt="Screenshot 2026-07-30 at 13 10 51" src="https://github.com/user-attachments/assets/e15babf0-bff5-4afd-bfb0-dfe13668860e" /> <br>
+
+- Groq LLM entegrasyonu kullanılarak müşteriye özel geri kazanım mesajları oluşturulmaktadır. Ayrıca önerilen aksiyon, teklif maliyeti ve beklenen müşteri değeri hesaplanarak karar destek süreci güçlendirilmiştir. <br>
+
+## Sprint Review
+
+Sprint 3 sonunda ürünün temel geliştirme süreci tamamlanmıştır.
+
+Dashboard, Müşteri Analizi ve Mesaj Üretici modülleri tek uygulama altında birleştirilmiş, SHAP tabanlı açıklanabilir yapay zekâ desteği ile churn tahminlerinin yorumlanabilirliği artırılmıştır. Groq LLM entegrasyonu sayesinde kişiselleştirilmiş müşteri geri kazanım mesajları oluşturulabilmektedir. Ayrıca Next Best Action önerileri ve teklif ekonomisi hesaplamaları eklenerek karar destek mekanizması güçlendirilmiştir.
+
+Sprint sonunda uygulama, kullanıcıların müşteri risklerini analiz edebileceği, risk nedenlerini inceleyebileceği ve kişiselleştirilmiş aksiyon önerileri oluşturabileceği çalışır durumda bir prototipe ulaşmıştır.
+
+## Sprint Retrospective
+
+- Dashboard modülleri başarıyla tamamlandı. <br>
+- Müşteri Analizi ekranı geliştirilerek açıklanabilir yapay zekâ desteği güçlendirildi. <br>
+- Kişiselleştirilmiş geri kazanım mesajı üretim süreci tamamlandı. <br>
+- Next Best Action ve teklif ekonomisi özellikleri başarıyla sisteme eklendi. <br>
+- Kullanıcı deneyimini iyileştirmeye yönelik arayüz düzenlemeleri yapıldı. <br>
+- Son testler ve hata düzeltmeleri tamamlandı. <br>
+- Proje dokümantasyonu güncellenerek ürün teslimine hazır hale getirildi. <br>
+ 
 </details>
 
 
