@@ -1,4 +1,4 @@
-<img width="1470" height="801" alt="Screenshot 2026-07-30 at 12 49 25" src="https://github.com/user-attachments/assets/e72eceec-f7f9-41d5-b94e-934f0b548738" /># YZTA-Bootcamp
+# YZTA-Bootcamp
 YZTA Bootcamp project
 
 ## Team Name
