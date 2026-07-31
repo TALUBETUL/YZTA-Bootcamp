@@ -2,7 +2,8 @@
 YZTA Bootcamp project
 
 ## Team Name
-(Group 78)
+
+İki Kişilik Dev Kadro
 
 ## Proje Geliştiricileri
 
